@@ -1,0 +1,6 @@
+<deploy>
+    <files>
+        <path>~/FileCabinet/SuiteScripts/Kanban_POC/Kanban_Suitelet.js</path>
+        <path>~/FileCabinet/SuiteScripts/Kanban_POC/dist/index.html</path>
+    </files>
+</deploy>

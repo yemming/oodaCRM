@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+/* Reset margin/padding for NetSuite embedding */
+html,
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: #F5F5F5 !important;
+}
+
+#root {
+  width: 100%;
+  min-height: 100%;
+}
+
+/* ========================================
+   只隱藏表單頭部的空白區域
+   ======================================== */
+
+/* 隱藏 Form Header（那個「More」按鈕所在的空白區域） */
+.uir-form-header {
+  display: none !important;
+}
+
+/* 移除 INLINEHTML field 的多餘間距 */
+#custpage_react_root_fs,
+#custpage_react_root_val {
+  margin: 0 !important;
+  padding: 0 !important;
+}
