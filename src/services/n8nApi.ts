@@ -1,0 +1,241 @@
+// src/services/n8nApi.ts
+// Unified N8N Webhook Integration Layer
+
+/**
+ * Request types for N8N webhook routing
+ * N8N can use Switch node to route based on this value
+ */
+export type N8NRequestType =
+    | 'ai_insight'      // AI 教練 - 商機分析建議
+    | 'email_template'  // AI Email - 生成郵件模板
+    | 'pain_analysis'   // AI 痛點分析
+    | 'meeting_prep'    // AI 會議準備 (未來)
+    | 'follow_up'       // AI 跟進建議 (未來)
+    | 'custom';         // 自訂功能
+
+/**
+ * Opportunity context data passed to all N8N requests
+ */
+export interface OpportunityContext {
+    id: string;
+    title: string;
+    customer?: string;
+    customerId?: string;
+    status?: string;
+    statusText?: string;
+    amount?: number;
+    probability?: number;
+    closeDate?: string;
+    salesRep?: string;
+}
+
+/**
+ * Base payload structure for all N8N requests
+ */
+export interface N8NBasePayload {
+    requestType: N8NRequestType;
+    opportunityContext: OpportunityContext;
+    timestamp: string;
+}
+
+/**
+ * AI Insight specific payload
+ */
+export interface AIInsightPayload extends N8NBasePayload {
+    requestType: 'ai_insight';
+    buyingCenter?: any[];
+    weeklyNotes?: any[];
+    activities?: {
+        emails?: any[];
+        phoneCalls?: any[];
+        tasks?: any[];
+    };
+    scorecardData?: any;
+}
+
+/**
+ * Email Template specific payload
+ * Includes full opportunity context for AI to generate personalized emails
+ */
+export interface EmailTemplatePayload extends N8NBasePayload {
+    requestType: 'email_template';
+    recipientName: string;
+    recipientEmail: string;
+    recipientTitle?: string;
+    emailPurpose?: 'follow_up' | 'introduction' | 'proposal' | 'thank_you' | 'custom';
+    // Full opportunity data for AI context
+    buyingCenter?: any[];           // 購買中心矩陣
+    weeklyNotes?: any[];            // 週報/備註
+    activities?: {                  // 活動記錄
+        emails?: any[];
+        phoneCalls?: any[];
+        tasks?: any[];
+        events?: any[];
+    };
+    scorecardData?: any;            // 機會評分表
+    formData?: any;                 // 表單資料（部門、地點、預計成案日等）
+}
+
+/**
+ * Pain Analysis specific payload
+ */
+export interface PainAnalysisPayload extends N8NBasePayload {
+    requestType: 'pain_analysis';
+    contactName: string;
+    contactTitle?: string;
+    existingPainData?: any;
+}
+
+// Union type of all payload types
+export type N8NPayload = AIInsightPayload | EmailTemplatePayload | PainAnalysisPayload;
+
+/**
+ * Get N8N URL from NetSuite context
+ */
+const getN8NUrl = (): string | null => {
+    return (window as any).NETSUITE_CONTEXT?.n8nAiUrl || null;
+};
+
+/**
+ * Unified N8N Webhook caller
+ * All AI features should use this function
+ * 
+ * @param payload - The request payload (must include requestType)
+ * @returns The response from N8N
+ */
+export const callN8N = async <T = any>(payload: N8NPayload): Promise<{
+    success: boolean;
+    data?: T;
+    error?: string;
+}> => {
+    const n8nUrl = getN8NUrl();
+
+    if (!n8nUrl) {
+        return {
+            success: false,
+            error: 'N8N URL 未設定。請在 OODA Configuration 中設定 n8n_ai_url。'
+        };
+    }
+
+    try {
+        console.log(`📡 Calling N8N [${payload.requestType}]`, payload);
+
+        const response = await fetch(n8nUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server responded with ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log(`✅ N8N Response [${payload.requestType}]`, data);
+
+        return { success: true, data };
+    } catch (error) {
+        console.error(`❌ N8N Error [${payload.requestType}]`, error);
+        return { success: false, error: String(error) };
+    }
+};
+
+/**
+ * Extract text from N8N response
+ * Handles various response formats from n8n
+ */
+export const extractTextFromN8NResponse = (data: any): string => {
+    // Format: [{ "text": "..." }]
+    if (Array.isArray(data) && data.length > 0 && data[0].text) {
+        return data[0].text;
+    }
+    // Format: { "text": "..." }
+    if (typeof data === 'object' && data.text) {
+        return data.text;
+    }
+    // Format: plain string
+    if (typeof data === 'string') {
+        return data;
+    }
+    // Fallback: stringify
+    return JSON.stringify(data, null, 2);
+};
+
+/**
+ * Helper: Create AI Insight payload
+ */
+export const createAIInsightPayload = (
+    opportunity: OpportunityContext,
+    options?: {
+        buyingCenter?: any[];
+        weeklyNotes?: any[];
+        activities?: any;
+        scorecardData?: any;
+    }
+): AIInsightPayload => ({
+    requestType: 'ai_insight',
+    opportunityContext: opportunity,
+    timestamp: new Date().toISOString(),
+    buyingCenter: options?.buyingCenter,
+    weeklyNotes: options?.weeklyNotes,
+    activities: options?.activities,
+    scorecardData: options?.scorecardData
+});
+
+/**
+ * Helper: Create Email Template payload
+ * Includes full opportunity data for AI to generate personalized emails
+ */
+export const createEmailTemplatePayload = (
+    opportunity: OpportunityContext,
+    recipient: {
+        name: string;
+        email: string;
+        title?: string;
+    },
+    purpose?: EmailTemplatePayload['emailPurpose'],
+    fullData?: {
+        buyingCenter?: any[];
+        weeklyNotes?: any[];
+        activities?: {
+            emails?: any[];
+            phoneCalls?: any[];
+            tasks?: any[];
+            events?: any[];
+        };
+        scorecardData?: any;
+        formData?: any;
+    }
+): EmailTemplatePayload => ({
+    requestType: 'email_template',
+    opportunityContext: opportunity,
+    timestamp: new Date().toISOString(),
+    recipientName: recipient.name,
+    recipientEmail: recipient.email,
+    recipientTitle: recipient.title,
+    emailPurpose: purpose || 'follow_up',
+    buyingCenter: fullData?.buyingCenter,
+    weeklyNotes: fullData?.weeklyNotes,
+    activities: fullData?.activities,
+    scorecardData: fullData?.scorecardData,
+    formData: fullData?.formData
+});
+
+/**
+ * Helper: Create Pain Analysis payload
+ */
+export const createPainAnalysisPayload = (
+    opportunity: OpportunityContext,
+    contact: {
+        name: string;
+        title?: string;
+    },
+    existingPainData?: any
+): PainAnalysisPayload => ({
+    requestType: 'pain_analysis',
+    opportunityContext: opportunity,
+    timestamp: new Date().toISOString(),
+    contactName: contact.name,
+    contactTitle: contact.title,
+    existingPainData
+});

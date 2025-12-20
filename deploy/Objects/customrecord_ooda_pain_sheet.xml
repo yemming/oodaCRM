@@ -1,0 +1,44 @@
+<customrecordtype scriptid="customrecord_ooda_pain_sheet">
+    <recordname>OODA Pain Sheet</recordname>
+    <accesstype>CUSTRECORDENTRYPERM</accesstype>
+    <customrecordcustomfields>
+        <customrecordcustomfield scriptid="custrecord_ps_opportunity">
+            <label>Related Opportunity</label>
+            <fieldtype>SELECT</fieldtype>
+            <selectrecordtype>-31</selectrecordtype>
+            <onparentdelete>NO_ACTION</onparentdelete>
+            <ismandatory>T</ismandatory>
+        </customrecordcustomfield>
+        <customrecordcustomfield scriptid="custrecord_ps_contact">
+            <label>Related Contact</label>
+            <fieldtype>SELECT</fieldtype>
+            <selectrecordtype>-6</selectrecordtype>
+            <onparentdelete>NO_ACTION</onparentdelete>
+            <ismandatory>T</ismandatory>
+        </customrecordcustomfield>
+        <customrecordcustomfield scriptid="custrecord_ps_pain">
+            <label>痛苦</label>
+            <fieldtype>TEXTAREA</fieldtype>
+            <displaytype>NORMAL</displaytype>
+        </customrecordcustomfield>
+        <customrecordcustomfield scriptid="custrecord_ps_position_industry">
+            <label>職位與行業</label>
+            <fieldtype>TEXTAREA</fieldtype>
+            <displaytype>NORMAL</displaytype>
+        </customrecordcustomfield>
+        <customrecordcustomfield scriptid="custrecord_ps_products_services">
+            <label>產品與服務</label>
+            <fieldtype>TEXTAREA</fieldtype>
+            <displaytype>NORMAL</displaytype>
+        </customrecordcustomfield>
+        <customrecordcustomfield scriptid="custrecord_ps_rows">
+            <label>Pain Rows (JSON)</label>
+            <fieldtype>CLOBTEXT</fieldtype>
+            <displaytype>NORMAL</displaytype>
+        </customrecordcustomfield>
+    </customrecordcustomfields>
+    <description>Stores pain sheet data for OODA loop. Keyed by (Opportunity, Contact).</description>
+    <showcreationdate>T</showcreationdate>
+    <showlastmodified>T</showlastmodified>
+    <showowner>T</showowner>
+</customrecordtype>

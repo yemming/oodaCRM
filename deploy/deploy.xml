@@ -1,6 +1,15 @@
 <deploy>
+    <configuration>
+        <path>~/AccountConfiguration/*</path>
+    </configuration>
     <files>
         <path>~/FileCabinet/SuiteScripts/Kanban_POC/Kanban_Suitelet.js</path>
-        <path>~/FileCabinet/SuiteScripts/Kanban_POC/dist/index.html</path>
+        <path>~/FileCabinet/SuiteScripts/Kanban_POC/OodaSettings_Suitelet.js</path>
+        <path>~/FileCabinet/SuiteScripts/Kanban_POC/OCR_Suitelet.js</path>
+        <path>~/FileCabinet/SuiteScripts/Kanban_POC/OCR_Page_Suitelet.js</path>
+        <path>~/FileCabinet/SuiteScripts/Kanban_POC/index.html</path>
     </files>
+    <objects>
+        <path>~/Objects/*</path>
+    </objects>
 </deploy>

@@ -1,0 +1,11 @@
+<customlist scriptid="customlist_ooda_type">
+    <name>OODA Analysis Type</name>
+    <customvalues>
+        <customvalue scriptid="val_ai_insight">
+            <value>AI Insight</value>
+        </customvalue>
+        <customvalue scriptid="val_manual_review">
+            <value>Manual Review</value>
+        </customvalue>
+    </customvalues>
+</customlist>

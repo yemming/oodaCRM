@@ -1,0 +1,19 @@
+<customrecordtype scriptid="customrecord_ooda_config">
+    <recordname>OODA Configuration</recordname>
+    <accesstype>CUSTRECORDENTRYPERM</accesstype>
+    <customrecordcustomfields>
+        <customrecordcustomfield scriptid="custrecord_ooda_config_key">
+            <label>Config Key</label>
+            <fieldtype>TEXT</fieldtype>
+            <ismandatory>T</ismandatory>
+        </customrecordcustomfield>
+        <customrecordcustomfield scriptid="custrecord_ooda_config_value">
+            <label>Config Value</label>
+            <fieldtype>CLOBTEXT</fieldtype>
+        </customrecordcustomfield>
+    </customrecordcustomfields>
+    <description>Stores configuration settings for OODA CRM, such as API URLs.</description>
+    <showcreationdate>T</showcreationdate>
+    <showlastmodified>T</showlastmodified>
+    <showowner>T</showowner>
+</customrecordtype>

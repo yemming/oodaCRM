@@ -3,3 +3,784 @@
   width: 100%;
   min-height: 100vh;
 }
+
+/* ============================================
+   OODA Analysis Modal Styles
+   ============================================ */
+
+/* Modal Overlay */
+.ooda-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* Modal Content */
+.ooda-modal-content {
+  background: #f8fafc;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 1400px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Header */
+.ooda-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ooda-header-left {
+  flex: 1;
+}
+
+.ooda-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.ooda-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.ooda-id {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.ooda-status-badge {
+  font-size: 0.75rem;
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-weight: 500;
+}
+
+.ooda-header-center {
+  display: flex;
+  gap: 24px;
+  margin-right: 20px;
+}
+
+.ooda-customer,
+.ooda-amount,
+.ooda-close-date {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ooda-label {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.ooda-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Make amount more prominent */
+.ooda-amount .ooda-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #059669;
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.ooda-customer-link {
+  font-size: 0.875rem;
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.ooda-customer-link:hover {
+  text-decoration: underline;
+}
+
+.ooda-header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.ooda-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  color: #64748b;
+  transition: all 0.2s;
+}
+
+.ooda-close-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+/* Main Content - 2 Columns (50:50) */
+.ooda-main {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.ooda-column {
+  padding: 20px;
+  overflow-y: auto;
+  background: white;
+}
+
+.ooda-column:not(:last-child) {
+  border-right: 1px solid #e2e8f0;
+}
+
+.ooda-section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+/* Observe - Left Column */
+.ooda-tabs {
+  display: flex;
+  gap: 4px;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.ooda-tab {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #64748b;
+  transition: all 0.2s;
+}
+
+.ooda-tab.active {
+  background: white;
+  color: #1e293b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.ooda-tab:hover:not(.active) {
+  color: #1e293b;
+}
+
+.ooda-tab-content {
+  min-height: 200px;
+}
+
+.ooda-activities {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ooda-activity-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.ooda-activity-icon {
+  font-size: 1.25rem;
+}
+
+.ooda-activity-content {
+  flex: 1;
+}
+
+.ooda-activity-date {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.ooda-activity-desc {
+  font-size: 0.875rem;
+  color: #1e293b;
+}
+
+.ooda-empty {
+  color: #94a3b8;
+  text-align: center;
+  padding: 40px 20px;
+  font-size: 0.875rem;
+}
+
+/* Orient - Middle Column */
+.ooda-matrix {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+  isolation: isolate;
+}
+
+.ooda-matrix-cell {
+  border-radius: 12px;
+  min-height: 140px;
+  overflow: visible;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  position: relative;
+}
+
+/* 用偽元素作為背景，確保背景永遠在內容下方 */
+.ooda-matrix-cell::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 10px;
+  z-index: -1;
+  background: #f8fafc;
+}
+
+.ooda-matrix-cell:hover {
+  border-color: #cbd5e1;
+}
+
+.ooda-matrix-cell.champion::before {
+  background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%);
+}
+
+.ooda-matrix-cell.blocker::before {
+  background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
+}
+
+.ooda-matrix-cell.low-priority::before,
+.ooda-matrix-cell.low_priority::before {
+  background: linear-gradient(135deg, #f8fafc 0%, #fff 100%);
+}
+
+.ooda-matrix-cell.supporter::before {
+  background: linear-gradient(135deg, #fef9c3 0%, #fefce8 100%);
+}
+
+.ooda-cell-header {
+  padding: 10px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.ooda-cell-content {
+  padding: 0 14px 14px 14px;
+  min-height: 80px;
+}
+
+.ooda-placeholder {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+.ooda-contact-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: white;
+  padding: 4px 8px 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  margin: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  cursor: grab;
+  transition: box-shadow 0.2s, transform 0.2s;
+  position: relative;
+  z-index: 100;
+  isolation: isolate;
+}
+
+.ooda-contact-chip:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Clickable contact name in chip */
+.ooda-contact-chip-name {
+  cursor: pointer;
+  color: #1e293b;
+  transition: color 0.2s;
+}
+
+.ooda-contact-chip-name:hover {
+  color: #8b5cf6;
+  text-decoration: underline;
+}
+
+/* Clickable contact name in card */
+.ooda-contact-name-link {
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.ooda-contact-name-link:hover {
+  color: #8b5cf6;
+  text-decoration: underline;
+}
+
+.ooda-unassigned {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.ooda-subsection-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  margin: 0 0 12px 0;
+}
+
+.ooda-contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ooda-contact-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  cursor: grab;
+  transition: all 0.2s;
+}
+
+.ooda-contact-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+}
+
+.ooda-contact-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.ooda-contact-info {
+  flex: 1;
+}
+
+.ooda-contact-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.ooda-contact-title {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* NetSuite - Right Column */
+.ooda-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ooda-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ooda-form-group label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.ooda-form-group input,
+.ooda-form-group select,
+.ooda-form-group textarea {
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #1e293b;
+  background: white;
+  transition: all 0.2s;
+}
+
+.ooda-form-group input:focus,
+.ooda-form-group select:focus,
+.ooda-form-group textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.ooda-form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* OODA Button on Kanban Card */
+.ooda-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: none;
+  cursor: pointer;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+}
+
+.ooda-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(99, 102, 241, 0.4);
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .ooda-main {
+    grid-template-columns: 1fr;
+  }
+
+  .ooda-column {
+    border-right: none !important;
+    border-bottom: 1px solid #e2e8f0;
+  }
+}
+
+/* Weekly Notes Styles */
+.ooda-weekly {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ooda-add-note-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ooda-add-note-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.ooda-add-note-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.ooda-note-input,
+.ooda-note-textarea {
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.ooda-note-input:focus,
+.ooda-note-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.ooda-note-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.ooda-submit-note-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ooda-submit-note-btn:hover:not(:disabled) {
+  background: #059669;
+}
+
+.ooda-submit-note-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ooda-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ooda-note-item {
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.ooda-note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ooda-note-title {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.875rem;
+}
+
+.ooda-note-date {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.ooda-note-content {
+  color: #475569;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.ooda-note-author {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.ooda-loading {
+  text-align: center;
+  padding: 20px;
+  color: #64748b;
+}
+
+/* Activity Section Styles */
+.ooda-activity-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ooda-sub-tabs {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ooda-sub-tab {
+  padding: 6px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #64748b;
+}
+
+.ooda-sub-tab:hover {
+  background: #e2e8f0;
+}
+
+.ooda-sub-tab.active {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  color: white;
+  border-color: transparent;
+}
+
+/* AI Insight Styles */
+.ooda-ai-insight {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+.ooda-ai-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ooda-ai-generate-btn {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2);
+}
+
+.ooda-ai-generate-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(139, 92, 246, 0.3);
+}
+
+.ooda-ai-generate-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.ooda-ai-result {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.ooda-ai-editor {
+  width: 100%;
+  min-height: 120px;
+  max-height: 600px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background-color: #f8fafc;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #334155;
+  resize: vertical;
+  overflow-y: auto;
+  transition: all 0.2s;
+}
+
+.ooda-ai-editor:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  background-color: white;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+/* Drag and Drop Styles */
+.ooda-contact-card.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+  z-index: 9999;
+}
+
+.ooda-contact-chip.dragging {
+  opacity: 0.8;
+  cursor: grabbing;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.ooda-contact-card {
+  cursor: grab;
+  transition: all 0.2s;
+}
+
+.ooda-contact-card:active {
+  cursor: grabbing;
+}
+
+.ooda-matrix-cell.drag-over {
+  background-color: #f0f9ff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.ooda-contact-list.drag-over {
+  background-color: #f0f9ff;
+  border: 2px dashed #3b82f6;
+  border-radius: 8px;
+}
+
+/* DragOverlay specific styles - MUST be on top */
+[data-dnd-kit-overlay] {
+  z-index: 99999 !important;
+  pointer-events: none;
+}
+
+[data-dnd-kit-overlay] .ooda-contact-chip {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  transform: scale(1.05);
+}

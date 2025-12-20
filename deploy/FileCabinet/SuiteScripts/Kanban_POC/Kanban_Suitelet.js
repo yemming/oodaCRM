@@ -8,10 +8,10 @@
  * GET: Serves the React application with Opportunity data injected
  * POST: Handles status updates from drag-drop actions
  */
-define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/log', 'N/url'],
-    (serverWidget, file, runtime, search, record, log, url) => {
+define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/log', 'N/url', 'N/query', 'N/email'],
+    (serverWidget, file, runtime, search, record, log, url, query, email) => {
 
-        const HTML_FILE_ID = 21487; // Internal ID of index.html
+        const HTML_FILE_ID = 21488; // Internal ID of index.html (updated 2025-12-19 with OODA feature)
 
         /**
          * Dynamically get all Opportunity Statuses from the account
@@ -42,71 +42,18 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
 
         /**
          * Create dynamic status mapping based on status names
-         * Maps Kanban column keys to actual NetSuite status IDs
+         * Key format: statusText.toLowerCase().replace(spaces with underscores)
+         * This matches the format used in getOpportunities for consistency
          */
         const createStatusMapping = (statuses) => {
             const mapping = {};
             const reverseMapping = {};
 
-            // Map common status names to kanban columns
-            // Updated to match your NetSuite account's actual status names
-            const nameToColumn = {
-                // Qualified (first stage)
-                'qualified': 'qualified',
-                'qualification': 'qualified',
-                'qualifying': 'qualified',
-
-                // In Discussion
-                'in discussion': 'in_discussion',
-                'discussion': 'in_discussion',
-                'identified decision makers': 'in_discussion',
-
-                // Proposal
-                'proposal': 'proposal',
-                'proposal sent': 'proposal',
-                'quote': 'proposal',
-
-                // In Negotiation
-                'in negotiation': 'in_negotiation',
-                'negotiation': 'in_negotiation',
-                'negotiating': 'in_negotiation',
-
-                // Closed Won
-                'closed won': 'closed_won',
-                'closed - won': 'closed_won',
-                'won': 'closed_won',
-
-                // Closed Lost (not displayed but mapped for completeness)
-                'closed lost': 'closed_lost',
-                'closed - lost': 'closed_lost',
-                'lost': 'closed_lost',
-                'lost customer': 'closed_lost',
-
-                // Others map to qualified by default
-                'unqualified': 'qualified',
-                'renewal': 'closed_won',
-                'purchasing': 'in_negotiation',
-            };
-
             statuses.forEach(status => {
-                const normalizedName = status.name.toLowerCase().trim();
-                const columnKey = nameToColumn[normalizedName];
-
-                if (columnKey) {
-                    mapping[columnKey] = parseInt(status.id);
-                    reverseMapping[status.id] = columnKey;
-                } else {
-                    // Default: assign to prospecting if probability < 30, else negotiation
-                    const probability = status.probability || 0;
-                    let defaultColumn;
-                    if (probability >= 90) defaultColumn = 'closed_won';
-                    else if (probability >= 70) defaultColumn = 'proposal';
-                    else if (probability >= 40) defaultColumn = 'negotiation';
-                    else if (probability >= 20) defaultColumn = 'qualification';
-                    else defaultColumn = 'prospecting';
-
-                    reverseMapping[status.id] = defaultColumn;
-                }
+                // Use the same key format as getOpportunities
+                const statusKey = status.name.toLowerCase().replace(/\s+/g, '_');
+                mapping[statusKey] = parseInt(status.id);
+                reverseMapping[status.id] = statusKey;
             });
 
             return { mapping, reverseMapping };
@@ -122,8 +69,17 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
             const { request, response } = context;
 
             // Check if this is an API action (can be GET or POST)
-            const action = request.parameters.action ||
-                (request.method === 'POST' && request.body ? JSON.parse(request.body).action : null);
+            let action = request.parameters.action;
+
+            // Only try to parse body if it's POST and body actually has content
+            if (!action && request.method === 'POST' && request.body && request.body.trim()) {
+                try {
+                    const body = JSON.parse(request.body);
+                    action = body.action;
+                } catch (e) {
+                    log.debug('Body Parse Error', e.message);
+                }
+            }
 
             if (action) {
                 handleApiRequest(request, response, action);
@@ -145,22 +101,89 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                 STATUS_ID_TO_KEY = mappings.reverseMapping;
 
                 // Get parameters from URL (GET) or body (POST)
-                let opportunityId, newStatus;
+                let opportunityId, newStatus, title, noteContent;
+                let insight, buyingCenter, snapshot, type;
+                let contactId, painData;
+
                 if (request.method === 'POST' && request.body) {
                     const body = JSON.parse(request.body);
                     opportunityId = body.opportunityId;
                     newStatus = body.newStatus;
+                    title = body.title;
+                    noteContent = body.noteContent;
+                    // OODA Params
+                    insight = body.insight;
+                    buyingCenter = body.buyingCenter;
+                    snapshot = body.snapshot;
+                    type = body.type;
+                    // Pain Sheet Params
+                    contactId = body.contactId;
+                    painData = body.painData;
+                    // Email Params (for sendEmail action)
+                    var emailSubject = body.emailSubject;
+                    var emailBodyContent = body.emailBody;
+                    var recipientEmail = body.recipientEmail;
+                    var recipientContactId = body.recipientContactId;
                 } else {
                     opportunityId = request.parameters.opportunityId;
                     newStatus = request.parameters.newStatus;
+                    title = request.parameters.title;
+                    noteContent = request.parameters.noteContent;
+                    type = request.parameters.type;
+                    contactId = request.parameters.contactId;
+                    painData = null;
                 }
 
-                log.debug('API Request', `action=${action}, oppId=${opportunityId}, newStatus=${newStatus}`);
-                log.debug('Status Mapping', JSON.stringify(STATUS_MAPPING));
+                // Additional parameters for activities
+                const subject = request.parameters.subject;
+                const recipients = request.parameters.recipients;
+                const emailBody = request.parameters.body;
+                const phone = request.parameters.phone;
+                const message = request.parameters.message;
+                const priority = request.parameters.priority;
+                const dueDate = request.parameters.dueDate;
+
+                log.debug('API Request', `action=${action}, oppId=${opportunityId}`);
 
                 let result;
                 if (action === 'updateStatus') {
                     result = updateOpportunityStatus(opportunityId, newStatus);
+                } else if (action === 'getNotes') {
+                    result = getUserNotes(opportunityId);
+                } else if (action === 'addNote') {
+                    result = addUserNote(opportunityId, title, noteContent);
+                } else if (action === 'getEmails') {
+                    result = getEmails(opportunityId);
+                } else if (action === 'addEmail') {
+                    result = addEmailRecord(opportunityId, subject, recipients, emailBody);
+                } else if (action === 'getPhoneCalls') {
+                    result = getPhoneCalls(opportunityId);
+                } else if (action === 'addPhoneCall') {
+                    result = addPhoneCallRecord(opportunityId, title, phone, message);
+                } else if (action === 'getTasks') {
+                    result = getTasks(opportunityId);
+                } else if (action === 'addTask') {
+                    result = addTaskRecord(opportunityId, title, priority, dueDate, message);
+                } else if (action === 'getEvents') {
+                    result = getEvents(opportunityId);
+                } else if (action === 'saveAnalysis') {
+                    result = saveOodaAnalysis(opportunityId, insight, buyingCenter, snapshot, type);
+                } else if (action === 'getAnalysisHistory') {
+                    result = getOodaAnalysis(opportunityId);
+                } else if (action === 'getContacts') {
+                    result = getContacts(opportunityId);
+                } else if (action === 'savePainSheet') {
+                    result = savePainSheet(opportunityId, contactId, painData);
+                } else if (action === 'getPainSheet') {
+                    result = getPainSheet(opportunityId, contactId);
+                } else if (action === 'getSalesReps') {
+                    result = getSalesReps();
+                } else if (action === 'getSalesTeams') {
+                    result = getSalesTeams();
+                } else if (action === 'getStatuses') {
+                    result = { success: true, statuses: getOpportunityStatuses() };
+                } else if (action === 'sendEmail') {
+                    result = sendEmailToContact(opportunityId, recipientContactId, recipientEmail, emailSubject, emailBodyContent);
                 } else {
                     result = { success: false, error: `Unknown action: ${action}` };
                 }
@@ -171,6 +194,332 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                 log.error('API Error', e.message + ' - Stack: ' + e.stack);
                 response.setHeader({ name: 'Content-Type', value: 'application/json' });
                 response.write(JSON.stringify({ success: false, error: e.message }));
+            }
+        };
+
+        /**
+         * Get User Notes for an Opportunity
+         */
+        const getUserNotes = (opportunityId) => {
+            try {
+                const notes = [];
+
+                const noteSearch = search.create({
+                    type: 'note',
+                    filters: [
+                        ['transaction', 'anyof', opportunityId]
+                    ],
+                    columns: [
+                        search.createColumn({ name: 'internalid' }),
+                        search.createColumn({ name: 'title' }),
+                        search.createColumn({ name: 'note' }),
+                        search.createColumn({ name: 'notedate', sort: search.Sort.DESC }),
+                        search.createColumn({ name: 'author' })
+                    ]
+                });
+
+                noteSearch.run().each((result) => {
+                    notes.push({
+                        id: result.getValue('internalid'),
+                        title: result.getValue('title') || 'Untitled',
+                        note: result.getValue('note') || '',
+                        date: result.getValue('notedate') || '',
+                        author: result.getText('author') || ''
+                    });
+                    return true;
+                });
+
+                log.debug('Notes Found', notes.length);
+                return { success: true, notes: notes };
+            } catch (e) {
+                log.error('Get Notes Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Add a User Note to an Opportunity
+         */
+        const addUserNote = (opportunityId, title, noteContent) => {
+            try {
+                const noteRecord = record.create({
+                    type: record.Type.NOTE,
+                    isDynamic: true
+                });
+
+                noteRecord.setValue({ fieldId: 'transaction', value: opportunityId });
+                noteRecord.setValue({ fieldId: 'title', value: title || 'Weekly Report' });
+                noteRecord.setValue({ fieldId: 'note', value: noteContent || '' });
+
+                const noteId = noteRecord.save();
+
+                log.audit('Note Added', `Opportunity ${opportunityId} - Note ID: ${noteId}`);
+                return { success: true, noteId: noteId };
+            } catch (e) {
+                log.error('Add Note Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Get Customer ID from Opportunity
+         */
+        const getCustomerFromOpportunity = (opportunityId) => {
+            try {
+                const opp = record.load({ type: record.Type.OPPORTUNITY, id: opportunityId, isDynamic: false });
+                return opp.getValue({ fieldId: 'entity' }); // Customer/Company
+            } catch (e) {
+                log.error('Get Customer Error', e.message);
+                return null;
+            }
+        };
+
+        /**
+         * Get Email Messages for an Opportunity (using SuiteQL)
+         */
+        const getEmails = (opportunityId) => {
+            try {
+                if (!opportunityId) {
+                    return { success: true, emails: [] };
+                }
+
+                const sql = `
+                    SELECT 
+                        id, 
+                        subject, 
+                        message as body, 
+                        messagedate as date,
+                        BUILTIN.DF(author) as author
+                    FROM 
+                        message 
+                    WHERE 
+                        transaction = ?
+                    ORDER BY 
+                        messagedate DESC
+                `;
+
+                const results = query.runSuiteQL({
+                    query: sql,
+                    params: [opportunityId]
+                }).asMappedResults();
+
+                const emails = results.map(r => ({
+                    id: r.id,
+                    subject: r.subject || 'No Subject',
+                    body: r.body || '',
+                    date: r.date || '',
+                    author: r.author || ''
+                }));
+
+                log.debug('Emails Found (SuiteQL)', emails.length);
+                return { success: true, emails: emails };
+            } catch (e) {
+                log.error('Get Emails Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Add Email Message to an Opportunity
+         */
+        const addEmailRecord = (opportunityId, subject, recipients, body) => {
+            try {
+                const emailRecord = record.create({ type: record.Type.MESSAGE, isDynamic: true });
+                emailRecord.setValue({ fieldId: 'transaction', value: opportunityId });
+                emailRecord.setValue({ fieldId: 'subject', value: subject || '' });
+                emailRecord.setValue({ fieldId: 'recipients', value: recipients || '' });
+                emailRecord.setValue({ fieldId: 'message', value: body || '' });
+                const emailId = emailRecord.save();
+                return { success: true, emailId: emailId };
+            } catch (e) {
+                log.error('Add Email Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Get Phone Calls for an Opportunity (using SuiteQL)
+         */
+        const getPhoneCalls = (opportunityId) => {
+            try {
+                if (!opportunityId) {
+                    return { success: true, phoneCalls: [] };
+                }
+
+                const sql = `
+                    SELECT 
+                        id, 
+                        title, 
+                        phone, 
+                        message, 
+                        startdate as date,
+                        BUILTIN.DF(owner) as author
+                    FROM 
+                        phonecall 
+                    WHERE 
+                        transaction = ?
+                    ORDER BY 
+                        startdate DESC
+                `;
+
+                const results = query.runSuiteQL({
+                    query: sql,
+                    params: [opportunityId]
+                }).asMappedResults();
+
+                const phoneCalls = results.map(r => ({
+                    id: r.id,
+                    title: r.title || 'Phone Call',
+                    phone: r.phone || '',
+                    message: r.message || '',
+                    date: r.date || '',
+                    author: r.author || ''
+                }));
+
+                log.debug('Phone Calls Found (SuiteQL)', phoneCalls.length);
+                return { success: true, phoneCalls: phoneCalls };
+            } catch (e) {
+                log.error('Get Phone Calls Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Add Phone Call to an Opportunity
+         */
+        const addPhoneCallRecord = (opportunityId, title, phone, message) => {
+            try {
+                const phoneRecord = record.create({ type: record.Type.PHONE_CALL, isDynamic: true });
+                phoneRecord.setValue({ fieldId: 'transaction', value: opportunityId });
+                phoneRecord.setValue({ fieldId: 'title', value: title || 'Phone Call' });
+                phoneRecord.setValue({ fieldId: 'phone', value: phone || '' });
+                phoneRecord.setValue({ fieldId: 'status', value: 'COMPLETE' }); // Log as Completed
+                phoneRecord.setValue({ fieldId: 'message', value: message || '' });
+                const phoneId = phoneRecord.save();
+                return { success: true, phoneCallId: phoneId };
+            } catch (e) {
+                log.error('Add Phone Call Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Get Tasks for an Opportunity (using SuiteQL)
+         */
+        const getTasks = (opportunityId) => {
+            try {
+                if (!opportunityId) {
+                    return { success: true, tasks: [] };
+                }
+
+                log.debug('getTasks (SuiteQL)', `Fetching tasks for Opp ${opportunityId}`);
+
+                const sql = `
+                    SELECT 
+                        id, 
+                        title, 
+                        priority, 
+                        status, 
+                        duedate, 
+                        BUILTIN.DF(assigned) as assignee, 
+                        message 
+                    FROM 
+                        task 
+                    WHERE 
+                        transaction = ?
+                    ORDER BY 
+                        duedate ASC
+                `;
+
+                const results = query.runSuiteQL({
+                    query: sql,
+                    params: [opportunityId]
+                }).asMappedResults();
+
+                // Map priority codes to text
+                const priorityMap = { '1': 'High', '2': 'Medium', '3': 'Low' };
+                // Map status codes to text  
+                const statusMap = { 'NOTSTART': 'Not Started', 'PROGRESS': 'In Progress', 'COMPLETE': 'Completed' };
+
+                const tasks = results.map(r => ({
+                    id: r.id,
+                    title: r.title || 'Task',
+                    priority: priorityMap[String(r.priority)] || 'Medium',
+                    status: statusMap[r.status] || r.status || 'Not Started',
+                    dueDate: r.duedate || '',
+                    assignee: r.assignee || '',
+                    message: r.message || ''
+                }));
+
+                log.debug('Tasks Found (SuiteQL)', tasks.length);
+                return { success: true, tasks: tasks };
+            } catch (e) {
+                log.error('Get Tasks Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Add Task to an Opportunity
+         */
+        const addTaskRecord = (opportunityId, title, priority, dueDate, message) => {
+            try {
+                const taskRecord = record.create({ type: record.Type.TASK, isDynamic: true });
+                taskRecord.setValue({ fieldId: 'transaction', value: opportunityId });
+                taskRecord.setValue({ fieldId: 'title', value: title || 'Task' });
+                taskRecord.setValue({ fieldId: 'priority', value: priority === 'High' ? 1 : priority === 'Low' ? 3 : 2 });
+                if (dueDate) taskRecord.setValue({ fieldId: 'duedate', value: new Date(dueDate) });
+                taskRecord.setValue({ fieldId: 'message', value: message || '' });
+                const taskId = taskRecord.save();
+                return { success: true, taskId: taskId };
+            } catch (e) {
+                log.error('Add Task Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Get Calendar Events for an Opportunity (using SuiteQL)
+         */
+        const getEvents = (opportunityId) => {
+            try {
+                if (!opportunityId) {
+                    return { success: true, events: [] };
+                }
+
+                const sql = `
+                    SELECT 
+                        id, 
+                        title, 
+                        startdate as date, 
+                        message, 
+                        BUILTIN.DF(organizer) as author
+                    FROM 
+                        calendarevent 
+                    WHERE 
+                        transaction = ?
+                    ORDER BY 
+                        startdate DESC
+                `;
+
+                const results = query.runSuiteQL({
+                    query: sql,
+                    params: [opportunityId]
+                }).asMappedResults();
+
+                const events = results.map(r => ({
+                    id: r.id,
+                    title: r.title || 'Event',
+                    date: r.date || '',
+                    message: r.message || '',
+                    author: r.author || ''
+                }));
+
+                log.debug('Events Found (SuiteQL)', events.length);
+                return { success: true, events: events };
+            } catch (e) {
+                log.error('Get Events Error', e.message);
+                return { success: false, error: e.message };
             }
         };
 
@@ -201,6 +550,138 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
         };
 
         /**
+         * Send Email to a Contact (using N/email module)
+         * The email will be attached to the Opportunity in NetSuite Communications
+         * @param {string} opportunityId - The Opportunity Internal ID
+         * @param {string} recipientContactId - The Contact Internal ID (optional, used for relatedRecords)
+         * @param {string} recipientEmail - The recipient email address
+         * @param {string} subject - Email subject
+         * @param {string} body - Email body (HTML supported)
+         * @returns {Object} - Success status and message ID
+         */
+        const sendEmailToContact = (opportunityId, recipientContactId, recipientEmail, subject, body) => {
+            try {
+                if (!recipientEmail) {
+                    return { success: false, error: 'Recipient email is required' };
+                }
+                if (!subject) {
+                    return { success: false, error: 'Email subject is required' };
+                }
+
+                const currentUser = runtime.getCurrentUser();
+                log.debug('Sending Email', {
+                    from: currentUser.id,
+                    to: recipientEmail,
+                    subject: subject,
+                    opportunityId: opportunityId
+                });
+
+                // Build relatedRecords object
+                const relatedRecords = {};
+                if (opportunityId) {
+                    relatedRecords.transactionId = opportunityId;
+                }
+                if (recipientContactId) {
+                    relatedRecords.entityId = recipientContactId;
+                }
+
+                // Send email using N/email module
+                email.send({
+                    author: currentUser.id,
+                    recipients: recipientEmail,
+                    subject: subject,
+                    body: body || '',
+                    relatedRecords: relatedRecords
+                });
+
+                log.audit('Email Sent', `To: ${recipientEmail}, Subject: ${subject}, Opp: ${opportunityId}`);
+                return {
+                    success: true,
+                    message: `Email sent successfully to ${recipientEmail}`
+                };
+            } catch (e) {
+                log.error('Send Email Error', e.message + ' - Stack: ' + e.stack);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Get all Sales Representatives (employees with issalesrep = true)
+         */
+        const getSalesReps = () => {
+            try {
+                const salesReps = [];
+                const empSearch = search.create({
+                    type: search.Type.EMPLOYEE,
+                    filters: [
+                        ['salesrep', 'is', 'T'],
+                        'AND',
+                        ['isinactive', 'is', 'F']
+                    ],
+                    columns: [
+                        search.createColumn({ name: 'internalid' }),
+                        search.createColumn({ name: 'entityid' }),
+                        search.createColumn({ name: 'firstname' }),
+                        search.createColumn({ name: 'lastname' })
+                    ]
+                });
+
+                empSearch.run().each((result) => {
+                    const firstName = result.getValue('firstname') || '';
+                    const lastName = result.getValue('lastname') || '';
+                    const fullName = `${firstName} ${lastName}`.trim() || result.getValue('entityid');
+
+                    salesReps.push({
+                        id: result.getValue('internalid'),
+                        name: fullName,
+                        entityId: result.getValue('entityid')
+                    });
+                    return true;
+                });
+
+                log.debug('Sales Reps Found', salesReps.length);
+                return { success: true, salesReps: salesReps };
+            } catch (e) {
+                log.error('getSalesReps Error', e.message);
+                return { success: false, error: e.message, salesReps: [] };
+            }
+        };
+
+        /**
+         * Get all Sales Teams
+         */
+        const getSalesTeams = () => {
+            try {
+                const salesTeams = [];
+                // Search for all sales team records
+                const teamSearch = search.create({
+                    type: 'salesteam',
+                    filters: [
+                        ['isinactive', 'is', 'F']
+                    ],
+                    columns: [
+                        search.createColumn({ name: 'internalid' }),
+                        search.createColumn({ name: 'name' })
+                    ]
+                });
+
+                teamSearch.run().each((result) => {
+                    salesTeams.push({
+                        id: result.getValue('internalid'),
+                        name: result.getValue('name') || 'Unnamed'
+                    });
+                    return true;
+                });
+
+                log.debug('Sales Teams Found', salesTeams.length);
+                return { success: true, salesTeams: salesTeams };
+            } catch (e) {
+                log.error('getSalesTeams Error', e.message);
+                return { success: false, error: e.message, salesTeams: [] };
+            }
+        };
+
+        /**
          * Fetch all Opportunities
          */
         const getOpportunities = () => {
@@ -222,19 +703,23 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
 
             oppSearch.run().each((result) => {
                 const statusId = result.getValue('entitystatus');
-                const statusText = result.getText('entitystatus');
-                const statusKey = STATUS_ID_TO_KEY[statusId] || 'prospecting'; // Default to prospecting
+                const statusText = result.getText('entitystatus') || 'Unknown';
+                // Use statusText directly as status key (lowercase, underscore-separated)
+                const statusKey = statusText.toLowerCase().replace(/\s+/g, '_');
 
                 opportunities.push({
                     id: result.getValue('internalid'),
                     title: result.getValue('title') || result.getText('entity') || 'Untitled',
                     customer: result.getText('entity') || '',
+                    customerId: result.getValue('entity') || '',
                     status: statusKey,
+                    statusId: statusId,
                     statusText: statusText,
                     amount: parseFloat(result.getValue('projectedtotal')) || 0,
                     probability: parseInt(result.getValue('probability')) || 0,
                     closeDate: result.getValue('expectedclosedate') || '',
-                    salesRep: result.getText('salesrep') || ''
+                    salesRep: result.getText('salesrep') || '',
+                    salesRepId: result.getValue('salesrep') || ''
                 });
                 return true; // Continue iteration
             });
@@ -244,9 +729,291 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
         };
 
         /**
-         * Get Opportunity Status list for mapping
+         * Get Contacts for a Customer (via Opportunity)
+         * @param {string} opportunityId - The Opportunity Internal ID
+         * @returns {Object} - Array of contacts
          */
-        // Note: getStatusList is not used, replaced by getOpportunityStatuses
+        const getContacts = (opportunityId) => {
+            try {
+                // First, get the Customer ID from the Opportunity
+                const oppRecord = record.load({
+                    type: record.Type.OPPORTUNITY,
+                    id: opportunityId,
+                    isDynamic: false
+                });
+
+                const customerId = oppRecord.getValue({ fieldId: 'entity' });
+
+                if (!customerId) {
+                    return { success: true, contacts: [] };
+                }
+
+                log.debug('Getting Contacts', `Opportunity: ${opportunityId}, Customer: ${customerId}`);
+
+                // Search for Contacts linked to this Customer
+                const contactSearch = search.create({
+                    type: search.Type.CONTACT,
+                    filters: [
+                        ['company', 'anyof', customerId]
+                    ],
+                    columns: [
+                        search.createColumn({ name: 'internalid' }),
+                        search.createColumn({ name: 'entityid' }),
+                        search.createColumn({ name: 'firstname' }),
+                        search.createColumn({ name: 'lastname' }),
+                        search.createColumn({ name: 'title' }),
+                        search.createColumn({ name: 'email' }),
+                        search.createColumn({ name: 'phone' })
+                    ]
+                });
+
+                const contactsMap = {};
+                contactSearch.run().each((result) => {
+                    const internalId = result.getValue('internalid');
+                    // Skip if we've already seen this contact
+                    if (contactsMap[internalId]) {
+                        return true; // Continue to next
+                    }
+
+                    const firstName = result.getValue('firstname') || '';
+                    const lastName = result.getValue('lastname') || '';
+                    const fullName = `${firstName} ${lastName}`.trim() || result.getValue('entityid');
+
+                    contactsMap[internalId] = {
+                        id: internalId,
+                        internalId: internalId,
+                        name: fullName,
+                        title: result.getValue('title') || '',
+                        email: result.getValue('email') || '',
+                        phone: result.getValue('phone') || ''
+                    };
+                    return true; // Continue iteration
+                });
+
+                const contacts = Object.values(contactsMap);
+                log.debug('Contacts Found', contacts.length);
+                return { success: true, contacts: contacts };
+            } catch (e) {
+                log.error('getContacts Error', e.message);
+                return { success: false, error: e.message, contacts: [] };
+            }
+        };
+
+        /**
+         * Save OODA Analysis to Custom Record
+         */
+        const saveOodaAnalysis = (opportunityId, insight, buyingCenter, snapshot, type) => {
+            try {
+                log.debug('Saving Analysis', { opportunityId, type });
+
+                // Check if record already exists for this opportunity
+                let existingId = null;
+                search.create({
+                    type: 'customrecord_ooda_analysis',
+                    filters: [
+                        ['custrecord_ooda_opp', 'anyof', opportunityId]
+                    ],
+                    columns: ['internalid']
+                }).run().each(result => {
+                    existingId = result.getValue('internalid');
+                    return false; // Stop after first
+                });
+
+                let rec;
+                if (existingId) {
+                    // Update existing record
+                    rec = record.load({ type: 'customrecord_ooda_analysis', id: existingId, isDynamic: true });
+                    log.debug('Updating existing analysis', existingId);
+                } else {
+                    // Create new record
+                    rec = record.create({ type: 'customrecord_ooda_analysis', isDynamic: true });
+                    rec.setValue({ fieldId: 'custrecord_ooda_opp', value: opportunityId });
+                    // Set required Name field
+                    rec.setValue({ fieldId: 'name', value: `OODA-Opp-${opportunityId}` });
+                }
+
+                // Update fields
+                rec.setValue({ fieldId: 'custrecord_ooda_insight', value: insight || '' });
+                rec.setValue({ fieldId: 'custrecord_ooda_buying_center', value: buyingCenter || '' });
+                rec.setValue({ fieldId: 'custrecord_ooda_snapshot', value: snapshot || '' });
+
+                const id = rec.save();
+                log.audit('Analysis Saved', `ID: ${id}, Opp: ${opportunityId}`);
+                return { success: true, id: id };
+            } catch (e) {
+                log.error('Save Analysis Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Get latest OODA Analysis
+         */
+        const getOodaAnalysis = (opportunityId) => {
+            try {
+                const searchResults = search.create({
+                    type: 'customrecord_ooda_analysis',
+                    filters: [
+                        ['custrecord_ooda_opp', 'anyof', opportunityId]
+                    ],
+                    columns: [
+                        search.createColumn({ name: 'internalid' }),
+                        search.createColumn({ name: 'custrecord_ooda_insight' }),
+                        search.createColumn({ name: 'custrecord_ooda_buying_center' }),
+                        search.createColumn({ name: 'custrecord_ooda_snapshot' }),
+                        search.createColumn({ name: 'created', sort: search.Sort.DESC })
+                    ]
+                }).run().getRange({ start: 0, end: 1 });
+
+                if (searchResults && searchResults.length > 0) {
+                    const res = searchResults[0];
+                    return {
+                        success: true,
+                        analysis: {
+                            id: res.getValue('internalid'),
+                            insight: res.getValue('custrecord_ooda_insight'),
+                            buyingCenter: res.getValue('custrecord_ooda_buying_center'),
+                            snapshot: res.getValue('custrecord_ooda_snapshot'),
+                            date: res.getValue('created')
+                        }
+                    };
+                }
+                return { success: true, analysis: null };
+            } catch (e) {
+                log.error('Get Analysis Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Save Pain Sheet for a Contact on an Opportunity
+         * Uses composite key (opportunityId + contactId)
+         */
+        const savePainSheet = (opportunityId, contactId, painData) => {
+            try {
+                if (!opportunityId || !contactId) {
+                    return { success: false, error: 'Missing opportunityId or contactId' };
+                }
+
+                log.debug('Saving Pain Sheet', { opportunityId, contactId });
+
+                // Check if record already exists
+                let existingId = null;
+                search.create({
+                    type: 'customrecord_ooda_pain_sheet',
+                    filters: [
+                        ['custrecord_ps_opportunity', 'anyof', opportunityId],
+                        'AND',
+                        ['custrecord_ps_contact', 'anyof', contactId]
+                    ],
+                    columns: ['internalid']
+                }).run().each(result => {
+                    existingId = result.getValue('internalid');
+                    return false; // Stop after first
+                });
+
+                let rec;
+                if (existingId) {
+                    // Update existing record
+                    rec = record.load({ type: 'customrecord_ooda_pain_sheet', id: existingId, isDynamic: true });
+                } else {
+                    // Create new record
+                    rec = record.create({ type: 'customrecord_ooda_pain_sheet', isDynamic: true });
+                    rec.setValue({ fieldId: 'custrecord_ps_opportunity', value: opportunityId });
+                    rec.setValue({ fieldId: 'custrecord_ps_contact', value: contactId });
+                    // Set required Name field: "Opp-{oppId}_Contact-{contactId}"
+                    rec.setValue({ fieldId: 'name', value: `Opp-${opportunityId}_Contact-${contactId}` });
+                }
+
+                // Set pain data fields
+                if (painData) {
+                    rec.setValue({ fieldId: 'custrecord_ps_pain', value: painData.pain || '' });
+                    rec.setValue({ fieldId: 'custrecord_ps_position_industry', value: painData.positionIndustry || '' });
+                    rec.setValue({ fieldId: 'custrecord_ps_products_services', value: painData.productsServices || '' });
+                    rec.setValue({ fieldId: 'custrecord_ps_rows', value: JSON.stringify(painData.rows || []) });
+                }
+
+                const id = rec.save();
+                log.audit('Pain Sheet Saved', `ID: ${id}, Opp: ${opportunityId}, Contact: ${contactId}`);
+                return { success: true, id: id };
+            } catch (e) {
+                log.error('Save Pain Sheet Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Get Pain Sheet for a Contact on an Opportunity
+         */
+        const getPainSheet = (opportunityId, contactId) => {
+            try {
+                if (!opportunityId || !contactId) {
+                    return { success: false, error: 'Missing opportunityId or contactId' };
+                }
+
+                log.debug('Getting Pain Sheet', { opportunityId, contactId });
+
+                let painSheet = null;
+                search.create({
+                    type: 'customrecord_ooda_pain_sheet',
+                    filters: [
+                        ['custrecord_ps_opportunity', 'anyof', opportunityId],
+                        'AND',
+                        ['custrecord_ps_contact', 'anyof', contactId]
+                    ],
+                    columns: [
+                        'internalid',
+                        'custrecord_ps_pain',
+                        'custrecord_ps_position_industry',
+                        'custrecord_ps_products_services',
+                        'custrecord_ps_rows'
+                    ]
+                }).run().each(result => {
+                    let rows = [];
+                    try {
+                        const rowsJson = result.getValue('custrecord_ps_rows');
+                        if (rowsJson) rows = JSON.parse(rowsJson);
+                    } catch (parseErr) {
+                        log.debug('Pain Sheet Rows Parse Error', parseErr.message);
+                    }
+
+                    painSheet = {
+                        id: result.getValue('internalid'),
+                        pain: result.getValue('custrecord_ps_pain') || '',
+                        positionIndustry: result.getValue('custrecord_ps_position_industry') || '',
+                        productsServices: result.getValue('custrecord_ps_products_services') || '',
+                        rows: rows
+                    };
+                    return false; // Stop after first
+                });
+
+                return { success: true, painSheet: painSheet };
+            } catch (e) {
+                log.error('Get Pain Sheet Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Get Config Value
+         */
+        const getConfigValue = (key) => {
+            try {
+                let value = '';
+                search.create({
+                    type: 'customrecord_ooda_config',
+                    filters: [['custrecord_ooda_config_key', 'is', key]],
+                    columns: ['custrecord_ooda_config_value']
+                }).run().each(result => {
+                    value = result.getValue('custrecord_ooda_config_value');
+                    return false;
+                });
+                return value;
+            } catch (e) {
+                log.error('Config Error', e.message);
+                return '';
+            }
+        };
 
         /**
          * Handle GET requests (Render React UI)
@@ -272,6 +1039,9 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                 const opportunities = getOpportunities();
                 const currentUser = runtime.getCurrentUser();
 
+                // Fetch N8N Config
+                const n8nAiUrl = getConfigValue('n8n_ai_insight_url') || '';
+
                 // Inject data into HTML (including status info for debugging)
                 // Generate proper Suitelet URL using url.resolveScript
                 // Use returnExternalUrl: false to avoid CORS (stay on same domain)
@@ -283,15 +1053,30 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                     returnExternalUrl: false  // Changed to false to avoid CORS
                 });
 
+                let ocrSuiteletUrl = '';
+                try {
+                    // Try to resolve OCR Suitelet URL (Assuming script ID 'customscript_ooda_ocr_suitelet')
+                    ocrSuiteletUrl = url.resolveScript({
+                        scriptId: 'customscript_ooda_ocr_suitelet',
+                        deploymentId: 'customdeploy_ooda_ocr_suitelet',
+                        returnExternalUrl: false
+                    });
+                } catch (e) {
+                    log.error('OCR Suitelet Resolution Warning', 'Could not resolve customscript_ooda_ocr_suitelet. Using placeholder or empty.');
+                }
+
                 log.debug('Suitelet URL', suiteletUrl);
+                log.debug('OCR Suitelet URL', ocrSuiteletUrl);
 
                 const dataScript = `
         <script>
           window.NETSUITE_CONTEXT = {
             suiteletUrl: '${suiteletUrl}',
+            ocrSuiteletUrl: '${ocrSuiteletUrl}',
             userId: '${currentUser.id}',
             userName: '${currentUser.name}',
-            role: '${currentUser.role}'
+            role: '${currentUser.role}',
+            n8nAiUrl: '${n8nAiUrl}'
           };
           window.NETSUITE_DATA = {
             opportunities: ${JSON.stringify(opportunities)},
@@ -301,6 +1086,7 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
           console.log('📋 Available Statuses:', window.NETSUITE_DATA.allStatuses);
           console.log('🔗 Status Mapping:', window.NETSUITE_DATA.statusMapping);
           console.log('🌐 Suitelet URL:', window.NETSUITE_CONTEXT.suiteletUrl);
+          console.log('🤖 N8N URL:', window.NETSUITE_CONTEXT.n8nAiUrl ? 'Configured' : 'Missing');
         </script>
       `;
                 htmlContent = htmlContent.replace('<head>', '<head>' + dataScript);

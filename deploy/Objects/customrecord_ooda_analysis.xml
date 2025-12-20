@@ -1,0 +1,35 @@
+<customrecordtype scriptid="customrecord_ooda_analysis">
+    <recordname>OODA Analysis</recordname>
+    <accesstype>CUSTRECORDENTRYPERM</accesstype>
+    <customrecordcustomfields>
+        <customrecordcustomfield scriptid="custrecord_ooda_opp">
+            <label>Related Opportunity</label>
+            <fieldtype>SELECT</fieldtype>
+            <selectrecordtype>-31</selectrecordtype>
+            <onparentdelete>NO_ACTION</onparentdelete>
+            <ismandatory>T</ismandatory>
+        </customrecordcustomfield>
+        <customrecordcustomfield scriptid="custrecord_ooda_type">
+            <label>Analysis Type</label>
+            <fieldtype>SELECT</fieldtype>
+            <selectrecordtype>[scriptid=customlist_ooda_type]</selectrecordtype>
+        </customrecordcustomfield>
+        <customrecordcustomfield scriptid="custrecord_ooda_insight">
+            <label>AI Insight</label>
+            <fieldtype>CLOBTEXT</fieldtype>
+            <displaytype>NORMAL</displaytype>
+        </customrecordcustomfield>
+        <customrecordcustomfield scriptid="custrecord_ooda_buying_center">
+            <label>Buying Center (JSON)</label>
+            <fieldtype>CLOBTEXT</fieldtype>
+        </customrecordcustomfield>
+        <customrecordcustomfield scriptid="custrecord_ooda_snapshot">
+            <label>Data Snapshot (JSON)</label>
+            <fieldtype>CLOBTEXT</fieldtype>
+        </customrecordcustomfield>
+    </customrecordcustomfields>
+    <description>Stores historical AI analysis for OODA loop.</description>
+    <showcreationdate>T</showcreationdate>
+    <showlastmodified>T</showlastmodified>
+    <showowner>T</showowner>
+</customrecordtype>

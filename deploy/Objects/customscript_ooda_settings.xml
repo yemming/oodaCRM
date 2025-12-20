@@ -1,0 +1,20 @@
+<suitelet scriptid="customscript_ooda_settings">
+    <name>OODA CRM Settings</name>
+    <notifyadmins>F</notifyadmins>
+    <notifyemails></notifyemails>
+    <notifyowner>T</notifyowner>
+    <notifyuser>F</notifyuser>
+    <scriptfile>[/SuiteScripts/Kanban_POC/OodaSettings_Suitelet.js]</scriptfile>
+    <scriptdeployments>
+        <scriptdeployment scriptid="customdeploy_ooda_settings">
+            <allemployees>T</allemployees>
+            <allpartners>F</allpartners>
+            <allroles>T</allroles>
+            <audslctrole></audslctrole>
+            <isdeployed>T</isdeployed>
+            <loglevel>DEBUG</loglevel>
+            <status>RELEASED</status>
+            <title>OODA CRM Settings Deployment</title>
+        </scriptdeployment>
+    </scriptdeployments>
+</suitelet>
