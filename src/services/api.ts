@@ -3,6 +3,7 @@
 
 export interface Opportunity {
     id: string;
+    tranId?: string; // Transaction ID (e.g. 1286)
     title: string;
     customer: string;
     customerId: string;
@@ -13,6 +14,7 @@ export interface Opportunity {
     closeDate: string;
     salesRep: string;
     salesRepId: string;
+    memo?: string; // Details field
 }
 
 interface NetSuiteContext {
@@ -43,7 +45,7 @@ const DEMO_OPPORTUNITIES: Opportunity[] = [
     { id: '1001', title: 'Acme Corp - ERP Implementation', customer: 'Acme Corp', customerId: '101', status: 'prospecting', statusText: 'Prospecting', amount: 150000, probability: 20, closeDate: '2024-03-15', salesRep: 'John Smith', salesRepId: '1' },
     { id: '1002', title: 'TechStart - Cloud Migration', customer: 'TechStart Inc', customerId: '102', status: 'qualification', statusText: 'Qualification', amount: 85000, probability: 40, closeDate: '2024-02-28', salesRep: 'Jane Doe', salesRepId: '2' },
     { id: '1003', title: 'GlobalTech - CRM Upgrade', customer: 'GlobalTech', customerId: '103', status: 'negotiation', statusText: 'Negotiation', amount: 220000, probability: 60, closeDate: '2024-01-31', salesRep: 'Bob Wilson', salesRepId: '3' },
-    { id: '1004', title: 'InnovateCo - Data Analytics', customer: 'InnovateCo', customerId: '104', status: 'proposal', statusText: 'Proposal', amount: 175000, probability: 75, closeDate: '2024-02-15', salesRep: 'Alice Brown', salesRepId: '4' },
+    { id: '1004', title: 'InnovateCo - Data Analytics', customer: 'InnovateCo', customerId: '104', status: 'proposal', statusText: 'Proposal', amount: 175000, probability: 75, closeDate: '2024-02-15', salesRep: 'Alice Brown', salesRepId: '4', memo: 'Technical review pending' },
     { id: '1005', title: 'FutureBiz - Digital Transform', customer: 'FutureBiz Ltd', customerId: '105', status: 'closed_won', statusText: 'Closed Won', amount: 320000, probability: 100, closeDate: '2024-01-15', salesRep: 'John Smith', salesRepId: '1' },
     { id: '1006', title: 'SmartSolutions - AI Integration', customer: 'SmartSolutions', customerId: '106', status: 'prospecting', statusText: 'Prospecting', amount: 95000, probability: 15, closeDate: '2024-04-01', salesRep: 'Jane Doe', salesRepId: '2' },
 ];
@@ -104,6 +106,49 @@ export const updateOpportunityStatus = async (
             return result;
         } catch {
             console.error(`❌ Response is not JSON: ${text.substring(0, 100)} `);
+            return { success: false, error: 'Server returned non-JSON response' };
+        }
+    } catch (error) {
+        console.error('❌ API Error:', error);
+        return { success: false, error: String(error) };
+    }
+};
+
+/**
+ * Update Opportunity Memo (Details)
+ */
+export const updateOpportunityMemo = async (
+    opportunityId: string,
+    memo: string
+): Promise<{ success: boolean; error?: string }> => {
+    if (!isNetSuite) {
+        console.log(`🔧[Local] Would update memo for ${opportunityId}: ${memo}`);
+        return { success: true };
+    }
+
+    try {
+        console.log(`📡 Updating Memo for ${opportunityId}...`);
+
+        const scriptUrl = window.NETSUITE_CONTEXT!.suiteletUrl;
+
+        // Use POST for larger text content
+        const response = await fetch(scriptUrl, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'updateMemo',
+                opportunityId: opportunityId,
+                memo: memo
+            })
+        });
+
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch {
             return { success: false, error: 'Server returned non-JSON response' };
         }
     } catch (error) {
@@ -243,15 +288,6 @@ export interface EmailRecord {
     author: string;
 }
 
-export interface PhoneCallRecord {
-    id: string;
-    title: string;
-    phone: string;
-    message: string;
-    date: string;
-    author: string;
-}
-
 export interface TaskRecord {
     id: string;
     title: string;
@@ -274,10 +310,6 @@ export interface EventRecord {
 const DEMO_EMAILS: EmailRecord[] = [
     { id: 'e1', subject: '報價確認', recipients: 'client@example.com', body: '請確認附件中的報價單', date: '2024-01-20', author: 'Larry Nelson' },
     { id: 'e2', subject: '會議邀請', recipients: 'team@example.com', body: '邀請您參加週一的需求討論會議', date: '2024-01-18', author: 'Larry Nelson' },
-];
-
-const DEMO_PHONE_CALLS: PhoneCallRecord[] = [
-    { id: 'p1', title: '初次聯繫', phone: '02-1234-5678', message: '客戶表示有興趣，希望下週進一步討論', date: '2024-01-19', author: 'Larry Nelson' },
 ];
 
 const DEMO_EVENTS: EventRecord[] = [
@@ -342,58 +374,7 @@ export const addEmail = async (
     }
 };
 
-/**
- * Fetch Phone Calls for an Opportunity
- */
-export const fetchPhoneCalls = async (
-    opportunityId: string
-): Promise<{ success: boolean; phoneCalls?: PhoneCallRecord[]; error?: string }> => {
-    if (!isNetSuite) {
-        console.log(`🔧[Local] Would fetch phone calls for ${opportunityId}`);
-        return { success: true, phoneCalls: DEMO_PHONE_CALLS };
-    }
 
-    try {
-        const url = `${window.NETSUITE_CONTEXT!.suiteletUrl}&action=getPhoneCalls&opportunityId=${opportunityId}`;
-        const response = await fetch(url, { method: 'GET', credentials: 'include' });
-        const text = await response.text();
-        try {
-            return JSON.parse(text);
-        } catch {
-            return { success: false, error: 'Server returned non-JSON response' };
-        }
-    } catch (error) {
-        return { success: false, error: String(error) };
-    }
-};
-
-/**
- * Add a Phone Call to an Opportunity
- */
-export const addPhoneCall = async (
-    opportunityId: string,
-    title: string,
-    phone: string,
-    message: string
-): Promise<{ success: boolean; phoneCallId?: string; error?: string }> => {
-    if (!isNetSuite) {
-        console.log(`🔧[Local] Would add phone call to ${opportunityId}: ${title} `);
-        return { success: true, phoneCallId: 'demo-' + Date.now() };
-    }
-
-    try {
-        const url = `${window.NETSUITE_CONTEXT!.suiteletUrl}&action=addPhoneCall&opportunityId=${opportunityId}&title=${encodeURIComponent(title)}&phone=${encodeURIComponent(phone)}&message=${encodeURIComponent(message)}`;
-        const response = await fetch(url, { method: 'GET', credentials: 'include' });
-        const text = await response.text();
-        try {
-            return JSON.parse(text);
-        } catch {
-            return { success: false, error: 'Server returned non-JSON response' };
-        }
-    } catch (error) {
-        return { success: false, error: String(error) };
-    }
-};
 
 /**
  * Fetch Tasks for an Opportunity
@@ -433,6 +414,34 @@ export const fetchEvents = async (
 
     try {
         const url = `${window.NETSUITE_CONTEXT!.suiteletUrl}&action=getEvents&opportunityId=${opportunityId}`;
+        const response = await fetch(url, { method: 'GET', credentials: 'include' });
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch {
+            return { success: false, error: 'Server returned non-JSON response' };
+        }
+    } catch (error) {
+        return { success: false, error: String(error) };
+    }
+};
+
+/**
+ * Add an Event to an Opportunity
+ */
+export const addEvent = async (
+    opportunityId: string,
+    title: string,
+    date: string,
+    message: string
+): Promise<{ success: boolean; eventId?: string; error?: string }> => {
+    if (!isNetSuite) {
+        console.log(`🔧[Local] Would add event to ${opportunityId}: ${title} `);
+        return { success: true, eventId: 'demo-' + Date.now() };
+    }
+
+    try {
+        const url = `${window.NETSUITE_CONTEXT!.suiteletUrl}&action=addEvent&opportunityId=${opportunityId}&title=${encodeURIComponent(title)}&date=${encodeURIComponent(date)}&message=${encodeURIComponent(message)}`;
         const response = await fetch(url, { method: 'GET', credentials: 'include' });
         const text = await response.text();
         try {

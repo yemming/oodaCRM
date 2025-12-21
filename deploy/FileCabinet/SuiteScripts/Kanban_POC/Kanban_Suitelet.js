@@ -111,6 +111,8 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                     newStatus = body.newStatus;
                     title = body.title;
                     noteContent = body.noteContent;
+                    const memo = body.memo; // For updateMemo
+                    const probability = body.probability; // For updateProbability
                     // OODA Params
                     insight = body.insight;
                     buyingCenter = body.buyingCenter;
@@ -129,6 +131,7 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                     newStatus = request.parameters.newStatus;
                     title = request.parameters.title;
                     noteContent = request.parameters.noteContent;
+                    const memo = request.parameters.memo; // For updateMemo
                     type = request.parameters.type;
                     contactId = request.parameters.contactId;
                     painData = null;
@@ -138,7 +141,7 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                 const subject = request.parameters.subject;
                 const recipients = request.parameters.recipients;
                 const emailBody = request.parameters.body;
-                const phone = request.parameters.phone;
+
                 const message = request.parameters.message;
                 const priority = request.parameters.priority;
                 const dueDate = request.parameters.dueDate;
@@ -148,6 +151,49 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                 let result;
                 if (action === 'updateStatus') {
                     result = updateOpportunityStatus(opportunityId, newStatus);
+                } else if (action === 'updateProbability') {
+                    const prob = request.body ? JSON.parse(request.body).probability : request.parameters.probability;
+                    result = updateOpportunityProbability(opportunityId, prob);
+                } else if (action === 'updateMemo') {
+                    // Handle Memo Update
+                    // We need to retrieve memo from either body or params depending on parsing above
+                    // But effectively we can just grab it from request.parameters or body again if needed
+                    // Simplest is to pass it into a variable in the parsing block.
+                    // Let's assume `memo` variable is available from the parsing block I just edited.
+                    // Wait, I need to make sure `memo` variable is accessible here.
+                    // The parsing block above declares `memo` inside potential `if/else` or just `let`?
+                    // Ah, I need to check the declaration.
+                    // Let's look at line 104: `let opportunityId, ...`
+                    // I should add `let memo` there too.
+
+                    // Actually, I'll essentially just trust `request.parameters.memo` or `body.memo` logic.
+                    // Re-reading my edit above: I added `const memo = ...` inside the blocks. 
+                    // Javascript scopes `const` to the block. So `memo` WON'T be available here!
+                    // I need to fix the declaration first.
+
+                    // RE-WRITE STRATEGY: 
+                    // Instead of assuming `memo` variable, I will re-fetch it here safely or rely on `request.parameters` 
+                    // if it was a GET, or parse body if POST.
+                    // BUT `handleApiRequest` logic is a bit messy. 
+
+                    // Better approach: 
+                    // In logical flow, `opportunityId` etc were declared with `let` at line 104.
+                    // I should add `memo` to that `let` list.
+
+                    // However, `multi_replace` chunks are separate. 
+                    // I will just use `request.parameters.memo` (if GET) or extract from body again if needed? 
+                    // No, that's inefficient.
+
+                    // OK, looking at the code:
+                    // Line 104: `let opportunityId, newStatus, title, noteContent;`
+
+                    // I will update line 104 to include `memo`.
+                    // And then remove `const` in my previous thought.
+
+                    // Let's do this correctly in ONE multireplace if possible, or assume I can access it.
+                    // I will update the declaration and the assignment.
+
+                    result = updateOpportunityMemo(opportunityId, request.parameters.memo || (request.body ? JSON.parse(request.body).memo : ''));
                 } else if (action === 'getNotes') {
                     result = getUserNotes(opportunityId);
                 } else if (action === 'addNote') {
@@ -156,16 +202,17 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                     result = getEmails(opportunityId);
                 } else if (action === 'addEmail') {
                     result = addEmailRecord(opportunityId, subject, recipients, emailBody);
-                } else if (action === 'getPhoneCalls') {
-                    result = getPhoneCalls(opportunityId);
-                } else if (action === 'addPhoneCall') {
-                    result = addPhoneCallRecord(opportunityId, title, phone, message);
+                } else if (action === 'addEmail') {
+                    result = addEmailRecord(opportunityId, subject, recipients, emailBody);
                 } else if (action === 'getTasks') {
                     result = getTasks(opportunityId);
                 } else if (action === 'addTask') {
                     result = addTaskRecord(opportunityId, title, priority, dueDate, message);
                 } else if (action === 'getEvents') {
                     result = getEvents(opportunityId);
+                } else if (action === 'addEvent') {
+                    const date = request.parameters.date;
+                    result = addEventRecord(opportunityId, title, date, message);
                 } else if (action === 'saveAnalysis') {
                     result = saveOodaAnalysis(opportunityId, insight, buyingCenter, snapshot, type);
                 } else if (action === 'getAnalysisHistory') {
@@ -198,42 +245,61 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
         };
 
         /**
-         * Get User Notes for an Opportunity
+         * Get User Notes for an Opportunity (using ONLY record.load)
+         * DIRECT SUBLIST ACCESS - Bypass all Search/Index logic.
          */
         const getUserNotes = (opportunityId) => {
             try {
+                if (!opportunityId) return { success: true, notes: [] };
+
                 const notes = [];
+                // Force ID to be a Number just in case
+                const recId = Number(opportunityId);
+                log.audit('GetNotes:LoadingRecord', 'ID: ' + recId);
 
-                const noteSearch = search.create({
-                    type: 'note',
-                    filters: [
-                        ['transaction', 'anyof', opportunityId]
-                    ],
-                    columns: [
-                        search.createColumn({ name: 'internalid' }),
-                        search.createColumn({ name: 'title' }),
-                        search.createColumn({ name: 'note' }),
-                        search.createColumn({ name: 'notedate', sort: search.Sort.DESC }),
-                        search.createColumn({ name: 'author' })
-                    ]
+                // 1. Load the Opportunity Record directly
+                const oppRecord = record.load({
+                    type: record.Type.OPPORTUNITY,
+                    id: recId,
+                    isDynamic: false
                 });
 
-                noteSearch.run().each((result) => {
+                // 2. Iterate the 'usernotes' sublist
+                // This is the specific sublist for "User Notes" under Communication tab
+                const lineCount = oppRecord.getLineCount({ sublistId: 'usernotes' });
+                log.audit('GetNotes:LineCount', lineCount);
+
+                for (let i = 0; i < lineCount; i++) {
+                    const title = oppRecord.getSublistValue({ sublistId: 'usernotes', fieldId: 'title', line: i });
+                    const noteContent = oppRecord.getSublistValue({ sublistId: 'usernotes', fieldId: 'note', line: i });
+                    const noteDate = oppRecord.getSublistValue({ sublistId: 'usernotes', fieldId: 'notedate', line: i });
+
+                    // Author is often a select field
+                    let authorName = '';
+                    try {
+                        authorName = oppRecord.getSublistText({ sublistId: 'usernotes', fieldId: 'author', line: i });
+                    } catch (err) {
+                        // Fallback if getText fails
+                        authorName = oppRecord.getSublistValue({ sublistId: 'usernotes', fieldId: 'author', line: i });
+                    }
+
+                    // Log first item to debug fields if needed
+                    if (i === 0) log.audit('GetNotes:FirstItem', JSON.stringify({ title, date: noteDate, author: authorName }));
+
                     notes.push({
-                        id: result.getValue('internalid'),
-                        title: result.getValue('title') || 'Untitled',
-                        note: result.getValue('note') || '',
-                        date: result.getValue('notedate') || '',
-                        author: result.getText('author') || ''
+                        id: 'note_' + i,  // Generate a frontend ID
+                        title: title || 'Untitled',
+                        note: noteContent || '',
+                        date: String(noteDate),
+                        author: authorName || 'Unknown'
                     });
-                    return true;
-                });
+                }
 
-                log.debug('Notes Found', notes.length);
                 return { success: true, notes: notes };
             } catch (e) {
-                log.error('Get Notes Error', e.message);
-                return { success: false, error: e.message };
+                log.error('GetNotes:Error', e.message);
+                // Return empty array instead of failure so UI doesn't crash, but log error
+                return { success: false, error: e.message, notes: [] };
             }
         };
 
@@ -337,71 +403,7 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
             }
         };
 
-        /**
-         * Get Phone Calls for an Opportunity (using SuiteQL)
-         */
-        const getPhoneCalls = (opportunityId) => {
-            try {
-                if (!opportunityId) {
-                    return { success: true, phoneCalls: [] };
-                }
 
-                const sql = `
-                    SELECT 
-                        id, 
-                        title, 
-                        phone, 
-                        message, 
-                        startdate as date,
-                        BUILTIN.DF(owner) as author
-                    FROM 
-                        phonecall 
-                    WHERE 
-                        transaction = ?
-                    ORDER BY 
-                        startdate DESC
-                `;
-
-                const results = query.runSuiteQL({
-                    query: sql,
-                    params: [opportunityId]
-                }).asMappedResults();
-
-                const phoneCalls = results.map(r => ({
-                    id: r.id,
-                    title: r.title || 'Phone Call',
-                    phone: r.phone || '',
-                    message: r.message || '',
-                    date: r.date || '',
-                    author: r.author || ''
-                }));
-
-                log.debug('Phone Calls Found (SuiteQL)', phoneCalls.length);
-                return { success: true, phoneCalls: phoneCalls };
-            } catch (e) {
-                log.error('Get Phone Calls Error', e.message);
-                return { success: false, error: e.message };
-            }
-        };
-
-        /**
-         * Add Phone Call to an Opportunity
-         */
-        const addPhoneCallRecord = (opportunityId, title, phone, message) => {
-            try {
-                const phoneRecord = record.create({ type: record.Type.PHONE_CALL, isDynamic: true });
-                phoneRecord.setValue({ fieldId: 'transaction', value: opportunityId });
-                phoneRecord.setValue({ fieldId: 'title', value: title || 'Phone Call' });
-                phoneRecord.setValue({ fieldId: 'phone', value: phone || '' });
-                phoneRecord.setValue({ fieldId: 'status', value: 'COMPLETE' }); // Log as Completed
-                phoneRecord.setValue({ fieldId: 'message', value: message || '' });
-                const phoneId = phoneRecord.save();
-                return { success: true, phoneCallId: phoneId };
-            } catch (e) {
-                log.error('Add Phone Call Error', e.message);
-                return { success: false, error: e.message };
-            }
-        };
 
         /**
          * Get Tasks for an Opportunity (using SuiteQL)
@@ -462,13 +464,38 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
         /**
          * Add Task to an Opportunity
          */
+        /**
+         * Add Task to an Opportunity (Log Task)
+         * Creates a COMPLETED task.
+         */
         const addTaskRecord = (opportunityId, title, priority, dueDate, message) => {
             try {
                 const taskRecord = record.create({ type: record.Type.TASK, isDynamic: true });
+
+                // Fix: Set Company (Entity) first to establish context/subsidiary
+                const customerId = getCustomerFromOpportunity(opportunityId);
+                if (customerId) {
+                    taskRecord.setValue({ fieldId: 'company', value: customerId });
+                }
+
                 taskRecord.setValue({ fieldId: 'transaction', value: opportunityId });
                 taskRecord.setValue({ fieldId: 'title', value: title || 'Task' });
-                taskRecord.setValue({ fieldId: 'priority', value: priority === 'High' ? 1 : priority === 'Low' ? 3 : 2 });
-                if (dueDate) taskRecord.setValue({ fieldId: 'duedate', value: new Date(dueDate) });
+
+                // Log Task: Always set status to COMPLETE
+                taskRecord.setValue({ fieldId: 'status', value: 'COMPLETE' });
+
+                // Log Task: Set Completed Date 
+                if (dueDate) {
+                    // If user provides a date, use it as completed date
+                    taskRecord.setValue({ fieldId: 'completeddate', value: new Date(dueDate) });
+                } else {
+                    // Default to today
+                    taskRecord.setValue({ fieldId: 'completeddate', value: new Date() });
+                }
+
+                // Priority is ignored for Log Task as per user request
+                // taskRecord.setValue({ fieldId: 'priority', value: ... }); 
+
                 taskRecord.setValue({ fieldId: 'message', value: message || '' });
                 const taskId = taskRecord.save();
                 return { success: true, taskId: taskId };
@@ -524,27 +551,113 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
         };
 
         /**
+         * Add Event to an Opportunity
+         */
+        const addEventRecord = (opportunityId, title, date, message) => {
+            try {
+                const eventRecord = record.create({ type: record.Type.CALENDAR_EVENT, isDynamic: true });
+
+                // Set Company (Entity) context
+                const customerId = getCustomerFromOpportunity(opportunityId);
+                if (customerId) {
+                    eventRecord.setValue({ fieldId: 'company', value: customerId });
+                }
+
+                eventRecord.setValue({ fieldId: 'transaction', value: opportunityId });
+                eventRecord.setValue({ fieldId: 'title', value: title || 'Event' });
+
+                if (date) {
+                    const eventDate = new Date(date);
+                    eventRecord.setValue({ fieldId: 'startdate', value: eventDate });
+                    // Default duration or end time could be set here, but startdate is simpler
+                }
+
+                // Status for events is typically handled differently (e.g. CONFIRMED), 
+                // but defaulting to CONFIRMED is good practice if possible. 
+                // However, standard Create form doesn't always require it.
+                // eventRecord.setValue({ fieldId: 'status', value: 'CONFIRMED' });
+
+                eventRecord.setValue({ fieldId: 'message', value: message || '' });
+
+                const eventId = eventRecord.save();
+                return { success: true, eventId: eventId };
+            } catch (e) {
+                log.error('Add Event Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
          * Update Opportunity Status
          */
         const updateOpportunityStatus = (opportunityId, newStatus) => {
             try {
-                const statusId = STATUS_MAPPING[newStatus];
-                if (!statusId) {
-                    return { success: false, error: `Invalid status: ${newStatus}` };
-                }
+                // Find Status ID from mapping
+                const statusId = STATUS_MAPPING[newStatus] || newStatus;
+
+                log.audit('Updating Status', `Opp: ${opportunityId}, New Status: ${newStatus} (ID: ${statusId})`);
 
                 record.submitFields({
                     type: record.Type.OPPORTUNITY,
                     id: opportunityId,
                     values: {
                         entitystatus: statusId
+                    },
+                    options: {
+                        enableSourcing: false,
+                        ignoreMandatoryFields: true
                     }
                 });
 
-                log.audit('Status Updated', `Opportunity ${opportunityId} -> ${newStatus} (${statusId})`);
-                return { success: true, opportunityId, newStatus };
+                return { success: true };
             } catch (e) {
-                log.error('Update Error', e.message);
+                log.error('Update Status Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Update Opportunity Probability
+         */
+        const updateOpportunityProbability = (opportunityId, probability) => {
+            try {
+                log.audit('Updating Probability', `Opp: ${opportunityId}, Probability: ${probability}%`);
+
+                record.submitFields({
+                    type: record.Type.OPPORTUNITY,
+                    id: opportunityId,
+                    values: {
+                        probability: probability
+                    },
+                    options: {
+                        enableSourcing: false,
+                        ignoreMandatoryFields: true
+                    }
+                });
+
+                return { success: true };
+            } catch (e) {
+                log.error('Update Probability Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Update Opportunity Memo (Details)
+         */
+        const updateOpportunityMemo = (opportunityId, memo) => {
+            try {
+                record.submitFields({
+                    type: record.Type.OPPORTUNITY,
+                    id: opportunityId,
+                    values: {
+                        memo: memo
+                    }
+                });
+                log.audit('Memo Updated', `Opportunity ${opportunityId}`);
+                return { success: true, opportunityId };
+            } catch (e) {
+                log.error('Update Memo Error', e.message);
                 return { success: false, error: e.message };
             }
         };
@@ -691,13 +804,15 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                 type: search.Type.OPPORTUNITY,
                 columns: [
                     search.createColumn({ name: 'internalid' }),
+                    search.createColumn({ name: 'tranid' }), // Add Transaction ID
                     search.createColumn({ name: 'title' }),
                     search.createColumn({ name: 'entity' }),
                     search.createColumn({ name: 'entitystatus' }),
                     search.createColumn({ name: 'projectedtotal' }),
                     search.createColumn({ name: 'probability' }),
                     search.createColumn({ name: 'expectedclosedate' }),
-                    search.createColumn({ name: 'salesrep' })
+                    search.createColumn({ name: 'salesrep' }),
+                    search.createColumn({ name: 'memo' }) // Add Memo/Details
                 ]
             });
 
@@ -709,6 +824,7 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
 
                 opportunities.push({
                     id: result.getValue('internalid'),
+                    tranId: result.getValue('tranid') || '', // Map Transaction ID
                     title: result.getValue('title') || result.getText('entity') || 'Untitled',
                     customer: result.getText('entity') || '',
                     customerId: result.getValue('entity') || '',
@@ -719,7 +835,8 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                     probability: parseInt(result.getValue('probability')) || 0,
                     closeDate: result.getValue('expectedclosedate') || '',
                     salesRep: result.getText('salesrep') || '',
-                    salesRepId: result.getValue('salesrep') || ''
+                    salesRepId: result.getValue('salesrep') || '',
+                    memo: result.getValue('memo') || '' // Map Memo
                 });
                 return true; // Continue iteration
             });

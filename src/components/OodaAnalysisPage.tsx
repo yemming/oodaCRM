@@ -1,16 +1,16 @@
+
 import { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import type { Opportunity, UserNote, EmailRecord, PhoneCallRecord, TaskRecord, EventRecord } from '../services/api';
+import type { Opportunity, UserNote, EmailRecord, TaskRecord, EventRecord } from '../services/api';
 import {
     fetchUserNotes, addUserNote,
-    fetchEmails, addEmail,
-    fetchPhoneCalls, addPhoneCall,
     fetchTasks, addTask,
-    fetchEvents,
+    fetchEvents, addEvent,
     saveOodaAnalysis,
     fetchOodaAnalysis,
     fetchContacts,
-    updateOpportunityProbability
+    updateOpportunityProbability,
+    updateOpportunityMemo
 } from '../services/api';
 import { OpportunityScorecard } from './OpportunityScorecard';
 import { PainSheet } from './PainSheet';
@@ -26,6 +26,8 @@ import {
     useDroppable
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
+
+
 
 interface Contact {
     id: string;
@@ -47,7 +49,7 @@ interface OodaAnalysisPageProps {
 
 export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps) {
     const [activeTab, setActiveTab] = useState<'ai' | 'weekly' | 'activity'>('activity');
-    const [activitySubTab, setActivitySubTab] = useState<'email' | 'phone' | 'task' | 'event'>('email');
+    const [activitySubTab, setActivitySubTab] = useState<'task' | 'event'>('task');
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [contactsLoaded, setContactsLoaded] = useState(false);
     const [activeContact, setActiveContact] = useState<Contact | null>(null);
@@ -55,7 +57,20 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState<boolean | null>(null);
 
-    // Configure drag sensors
+    // Details (Memo) State
+    const [details, setDetails] = useState('');
+    // savingDetails state removed as it is merged into isSaving
+
+    // Initial Data Loading
+    useEffect(() => {
+        // Load Details from opportunity
+        if (opportunity.memo) {
+            setDetails(opportunity.memo);
+        }
+    }, [opportunity]);
+
+    // handleSaveDetails removed - merged into handleSaveContacts
+
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -105,10 +120,15 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                 {
                     buyingCenter: contacts,
                     weeklyNotes: weeklyNotes,
+                    // Add new type property to satisfy TypeScript
                     activities: {
-                        emails: emails,
-                        phoneCalls: phoneCalls,
-                        tasks: tasks
+                        emails: [],
+                        tasks: tasks,
+                        events: events
+                    } as {
+                        emails: EmailRecord[];
+                        tasks: TaskRecord[];
+                        events: EventRecord[];
                     },
                     scorecardData: { ...formData, scorecardChecks }
                 }
@@ -245,40 +265,31 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
     const [newNoteContent, setNewNoteContent] = useState('');
     const [submittingNote, setSubmittingNote] = useState(false);
 
-    // Email state
-    const [emails, setEmails] = useState<EmailRecord[]>([]);
-    const [loadingEmails, setLoadingEmails] = useState(false);
-    const [emailsLoaded, setEmailsLoaded] = useState(false);
-    const [showAddEmail, setShowAddEmail] = useState(false);
+    // Email Composer State
     const [showEmailComposer, setShowEmailComposer] = useState(false);
-    const [newEmailSubject, setNewEmailSubject] = useState('');
-    const [newEmailRecipients, setNewEmailRecipients] = useState('');
-    const [newEmailBody, setNewEmailBody] = useState('');
-    const [submittingEmail, setSubmittingEmail] = useState(false);
+    // Keep emails state for AI context or Composer, even if empty
+    const [emails] = useState<EmailRecord[]>([]);
 
-    // Phone call state
-    const [phoneCalls, setPhoneCalls] = useState<PhoneCallRecord[]>([]);
-    const [loadingPhoneCalls, setLoadingPhoneCalls] = useState(false);
-    const [phoneCallsLoaded, setPhoneCallsLoaded] = useState(false);
-    const [showAddPhoneCall, setShowAddPhoneCall] = useState(false);
-    const [newPhoneTitle, setNewPhoneTitle] = useState('');
-    const [newPhoneNumber, setNewPhoneNumber] = useState('');
-    const [newPhoneMessage, setNewPhoneMessage] = useState('');
-    const [submittingPhoneCall, setSubmittingPhoneCall] = useState(false);
-
-    // Task state
+    // Task States
     const [tasks, setTasks] = useState<TaskRecord[]>([]);
     const [loadingTasks, setLoadingTasks] = useState(false);
     const [tasksLoaded, setTasksLoaded] = useState(false);
-    const [events, setEvents] = useState<EventRecord[]>([]);
-    const [loadingEvents, setLoadingEvents] = useState(false);
-    const [eventsLoaded, setEventsLoaded] = useState(false);
     const [showAddTask, setShowAddTask] = useState(false);
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [newTaskPriority, setNewTaskPriority] = useState('Medium');
     const [newTaskDueDate, setNewTaskDueDate] = useState('');
     const [newTaskMessage, setNewTaskMessage] = useState('');
     const [submittingTask, setSubmittingTask] = useState(false);
+
+    // Event States
+    const [events, setEvents] = useState<EventRecord[]>([]);
+    const [loadingEvents, setLoadingEvents] = useState(false);
+    const [eventsLoaded, setEventsLoaded] = useState(false);
+    const [showAddEvent, setShowAddEvent] = useState(false);
+    const [newEventTitle, setNewEventTitle] = useState('');
+    const [newEventDate, setNewEventDate] = useState('');
+    const [newEventMessage, setNewEventMessage] = useState('');
+    const [submittingEvent, setSubmittingEvent] = useState(false);
 
     // Load weekly notes when tab is activated (only once)
     useEffect(() => {
@@ -331,31 +342,19 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
         }
     };
 
-    const loadEmails = async () => {
-        if (loadingEmails) return;
-        setLoadingEmails(true);
-        try {
-            const result = await fetchEmails(opportunity.id);
-            if (result.success && result.emails) {
-                setEmails(result.emails);
-            }
-        } finally {
-            setLoadingEmails(false);
-            setEmailsLoaded(true);
-        }
-    };
 
-    const loadPhoneCalls = async () => {
-        if (loadingPhoneCalls) return;
-        setLoadingPhoneCalls(true);
+
+    const loadEvents = async () => {
+        if (loadingEvents) return;
+        setLoadingEvents(true);
         try {
-            const result = await fetchPhoneCalls(opportunity.id);
-            if (result.success && result.phoneCalls) {
-                setPhoneCalls(result.phoneCalls);
+            const result = await fetchEvents(opportunity.id);
+            if (result.success && result.events) {
+                setEvents(result.events);
             }
         } finally {
-            setLoadingPhoneCalls(false);
-            setPhoneCallsLoaded(true);
+            setLoadingEvents(false);
+            setEventsLoaded(true);
         }
     };
 
@@ -373,81 +372,17 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
         }
     };
 
-    const loadEvents = async () => {
-        if (loadingEvents) return;
-        setLoadingEvents(true);
-        try {
-            const result = await fetchEvents(opportunity.id);
-            if (result.success && result.events) {
-                setEvents(result.events);
-            }
-        } finally {
-            setLoadingEvents(false);
-            setEventsLoaded(true);
-        }
-    };
-
     // Load data when tab changes
     useEffect(() => {
         if (activeTab === 'activity') {
-            if (activitySubTab === 'email' && !emailsLoaded && !loadingEmails) { loadEmails(); }
-            else if (activitySubTab === 'phone' && !phoneCallsLoaded && !loadingPhoneCalls) { loadPhoneCalls(); }
-            else if (activitySubTab === 'task' && !tasksLoaded && !loadingTasks) { loadTasks(); }
+            if (activitySubTab === 'task' && !tasksLoaded && !loadingTasks) { loadTasks(); }
             else if (activitySubTab === 'event' && !eventsLoaded && !loadingEvents) { loadEvents(); }
+        } else if (activeTab === 'weekly') {
+            if (!notesLoaded && !loadingNotes) { loadNotes(); }
         }
     }, [activeTab, activitySubTab]);
 
-    const handleAddEmail = async () => {
-        if (!newEmailSubject.trim() || !newEmailRecipients.trim()) {
-            alert('請填寫收件人和主旨');
-            return;
-        }
-        setSubmittingEmail(true);
-        const result = await addEmail(opportunity.id, newEmailSubject, newEmailRecipients, newEmailBody);
-        setSubmittingEmail(false);
-        if (result.success) {
-            setEmails(prev => [{
-                id: result.emailId || 'new-' + Date.now(),
-                subject: newEmailSubject,
-                recipients: newEmailRecipients,
-                body: newEmailBody,
-                date: new Date().toISOString().split('T')[0],
-                author: 'Current User'
-            }, ...prev]);
-            setNewEmailSubject('');
-            setNewEmailRecipients('');
-            setNewEmailBody('');
-            setShowAddEmail(false);
-        } else {
-            alert('新增郵件失敗: ' + (result.error || '未知錯誤'));
-        }
-    };
 
-    const handleAddPhoneCall = async () => {
-        if (!newPhoneTitle.trim() || !newPhoneNumber.trim()) {
-            alert('請填寫通話標題和電話號碼');
-            return;
-        }
-        setSubmittingPhoneCall(true);
-        const result = await addPhoneCall(opportunity.id, newPhoneTitle, newPhoneNumber, newPhoneMessage);
-        setSubmittingPhoneCall(false);
-        if (result.success) {
-            setPhoneCalls(prev => [{
-                id: result.phoneCallId || 'new-' + Date.now(),
-                title: newPhoneTitle,
-                phone: newPhoneNumber,
-                message: newPhoneMessage,
-                date: new Date().toISOString().split('T')[0],
-                author: 'Current User'
-            }, ...prev]);
-            setNewPhoneTitle('');
-            setNewPhoneNumber('');
-            setNewPhoneMessage('');
-            setShowAddPhoneCall(false);
-        } else {
-            alert('新增電話記錄失敗: ' + (result.error || '未知錯誤'));
-        }
-    };
 
     const handleAddTask = async () => {
         if (!newTaskTitle.trim() || !newTaskDueDate.trim()) {
@@ -474,6 +409,32 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
             setShowAddTask(false);
         } else {
             alert('新增任務失敗: ' + (result.error || '未知錯誤'));
+        }
+
+    };
+
+    const handleAddEvent = async () => {
+        if (!newEventTitle.trim() || !newEventDate.trim()) {
+            alert('請填寫行程標題和日期');
+            return;
+        }
+        setSubmittingEvent(true);
+        const result = await addEvent(opportunity.id, newEventTitle, newEventDate, newEventMessage);
+        setSubmittingEvent(false);
+        if (result.success) {
+            setEvents(prev => [{
+                id: result.eventId || 'new-' + Date.now(),
+                title: newEventTitle,
+                date: newEventDate,
+                author: 'Current User',
+                message: newEventMessage
+            }, ...prev]);
+            setNewEventTitle('');
+            setNewEventDate('');
+            setNewEventMessage('');
+            setShowAddEvent(false);
+        } else {
+            alert('新增行程失敗: ' + (result.error || '未知錯誤'));
         }
     };
 
@@ -582,6 +543,9 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                 formData.probability,
                 scorecardChecks
             );
+
+            // Save Details (Memo)
+            await updateOpportunityMemo(opportunity.id, details);
 
             console.log('✅ Saved:', { contacts: contacts.length, probability: formData.probability });
             setSaveSuccess(true);
@@ -716,8 +680,8 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
 
         return (
             <div
-                className={`ooda-contact-list ${isOver ? 'drag-over' : ''}`}
                 ref={setNodeRef}
+                className={`ooda-contact-list ${isOver ? 'drag-over' : ''}`}
             >
                 {unassigned.map(contact => (
                     <DraggableContact key={contact.id} contact={contact} />
@@ -740,7 +704,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                         <div className="ooda-header-left">
                             <h1 className="ooda-title">{opportunity.title}</h1>
                             <div className="ooda-meta">
-                                <span className="ooda-id">OPP-{opportunity.id}</span>
+                                <span className="ooda-id">OPP-{opportunity.tranId || opportunity.id}</span>
                                 <span className="ooda-status-badge">{opportunity.statusText}</span>
                             </div>
                         </div>
@@ -748,7 +712,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                             <div className="ooda-customer">
                                 <span className="ooda-label">客戶</span>
                                 <a
-                                    href={`/app/common/entity/custjob.nl?id=${opportunity.customerId}`}
+                                    href={`/ app / common / entity / custjob.nl ? id = ${opportunity.customerId} `}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="ooda-customer-link"
@@ -801,29 +765,51 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
 
                     {/* Main Content - 3 Columns */}
                     <div className="ooda-main">
-                        {/* Left Column - Observe */}
-                        <div className="ooda-column ooda-observe">
+                        {/* Activity Timeline (Left Column) */}
+                        <div className="ooda-column ooda-timeline">
                             <h2 className="ooda-section-title">Observe - 活動時間軸</h2>
 
-                            {/* Tabs */}
+                            {/* Details / Memo Section */}
+                            <div className="ooda-details-section" style={{ marginBottom: '15px', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                    <label style={{ fontWeight: 'bold', fontSize: '14px', color: '#475569' }}>Details</label>
+                                </div>
+                                <textarea
+                                    value={details}
+                                    onChange={(e) => setDetails(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        minHeight: '320px',
+                                        padding: '8px',
+                                        borderRadius: '6px',
+                                        border: '1px solid #cbd5e1',
+                                        fontSize: '14px',
+                                        resize: 'vertical'
+                                    }}
+                                />
+                            </div>
+
                             <div className="ooda-tabs">
                                 <button
                                     type="button"
-                                    className={`ooda-tab ${activeTab === 'activity' ? 'active' : ''} `}
+                                    key="activity"
+                                    className={`ooda-tab ${activeTab === 'activity' ? 'active' : ''}`}
                                     onClick={() => setActiveTab('activity')}
                                 >
                                     📋 Activities
                                 </button>
                                 <button
                                     type="button"
-                                    className={`ooda-tab ${activeTab === 'weekly' ? 'active' : ''} `}
+                                    key="weekly"
+                                    className={`ooda-tab ${activeTab === 'weekly' ? 'active' : ''}`}
                                     onClick={() => setActiveTab('weekly')}
                                 >
                                     📝 User Note
                                 </button>
                                 <button
                                     type="button"
-                                    className={`ooda-tab ${activeTab === 'ai' ? 'active' : ''} `}
+                                    key="ai"
+                                    className={`ooda-tab ${activeTab === 'ai' ? 'active' : ''}`}
                                     onClick={() => setActiveTab('ai')}
                                 >
                                     🤖 AI 數據
@@ -834,14 +820,27 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                             <div className="ooda-tab-content">
                                 {activeTab === 'ai' && (
                                     <div className="ooda-ai-insight">
-                                        <div className="ooda-ai-actions">
+                                        <div className="ooda-ai-actions" style={{ display: 'flex', gap: '8px' }}>
                                             <button
                                                 type="button"
                                                 className="ooda-ai-generate-btn"
                                                 onClick={handleGenerateInsight}
                                                 disabled={loadingAI}
+                                                style={{ flex: 1 }}
                                             >
                                                 {loadingAI ? '✨ 分析中...' : '🪄 生成 AI 洞察'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="ooda-ai-generate-btn"
+                                                onClick={() => setShowEmailComposer(true)}
+                                                style={{
+                                                    flex: 1,
+                                                    background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
+                                                    color: 'white'
+                                                }}
+                                            >
+                                                🤖 AI 建議郵件
                                             </button>
                                         </div>
                                         <div className="ooda-ai-result">
@@ -922,24 +921,10 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                         <div className="ooda-sub-tabs">
                                             <button
                                                 type="button"
-                                                className={`ooda-sub-tab ${activitySubTab === 'email' ? 'active' : ''} `}
-                                                onClick={() => setActivitySubTab('email')}
-                                            >
-                                                📧 Email
-                                            </button>
-                                            <button
-                                                type="button"
                                                 className={`ooda-sub-tab ${activitySubTab === 'task' ? 'active' : ''}`}
                                                 onClick={() => setActivitySubTab('task')}
                                             >
                                                 ✅ Task
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={`ooda-sub-tab ${activitySubTab === 'phone' ? 'active' : ''} `}
-                                                onClick={() => setActivitySubTab('phone')}
-                                            >
-                                                📞 Phone
                                             </button>
                                             <button
                                                 type="button"
@@ -949,151 +934,6 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                 🗓️ Event
                                             </button>
                                         </div>
-
-                                        {/* Email Sub Tab */}
-                                        {activitySubTab === 'email' && (
-                                            <div className="ooda-sub-content">
-                                                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                                                    <button
-                                                        type="button"
-                                                        className="ooda-add-note-btn"
-                                                        onClick={() => setShowAddEmail(!showAddEmail)}
-                                                        style={{ flex: 1 }}
-                                                    >
-                                                        {showAddEmail ? '✕ 取消' : '📝 記錄郵件'}
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="ooda-add-note-btn"
-                                                        onClick={() => setShowEmailComposer(true)}
-                                                        style={{
-                                                            flex: 1,
-                                                            background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
-                                                            color: 'white'
-                                                        }}
-                                                    >
-                                                        🤖 AI 建議郵件
-                                                    </button>
-                                                </div>
-                                                {showAddEmail && (
-                                                    <div className="ooda-add-note-form">
-                                                        <input
-                                                            type="text"
-                                                            placeholder="收件人 (例: client@example.com)"
-                                                            value={newEmailRecipients}
-                                                            onChange={(e) => setNewEmailRecipients(e.target.value)}
-                                                            className="ooda-note-input"
-                                                        />
-                                                        <input
-                                                            type="text"
-                                                            placeholder="主旨"
-                                                            value={newEmailSubject}
-                                                            onChange={(e) => setNewEmailSubject(e.target.value)}
-                                                            className="ooda-note-input"
-                                                        />
-                                                        <textarea
-                                                            placeholder="郵件內容..."
-                                                            value={newEmailBody}
-                                                            onChange={(e) => setNewEmailBody(e.target.value)}
-                                                            rows={4}
-                                                            className="ooda-note-textarea"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            className="ooda-submit-note-btn"
-                                                            onClick={handleAddEmail}
-                                                            disabled={submittingEmail}
-                                                        >
-                                                            {submittingEmail ? '提交中...' : '📧 發送郵件'}
-                                                        </button>
-                                                    </div>
-                                                )}
-                                                {loadingEmails ? (
-                                                    <div className="ooda-loading">載入中...</div>
-                                                ) : emails.length === 0 ? (
-                                                    <div className="ooda-empty">尚無郵件記錄</div>
-                                                ) : (
-                                                    <div className="ooda-notes-list">
-                                                        {emails.map(email => (
-                                                            <div key={email.id} className="ooda-note-item">
-                                                                <div className="ooda-note-header">
-                                                                    <span className="ooda-note-title">📧 {email.subject}</span>
-                                                                    <span className="ooda-note-date">{email.date}</span>
-                                                                </div>
-                                                                <div className="ooda-note-content">收件人: {email.recipients}</div>
-                                                                <div className="ooda-note-content">{email.body}</div>
-                                                                <div className="ooda-note-author">— {email.author}</div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {/* Phone Sub Tab */}
-                                        {activitySubTab === 'phone' && (
-                                            <div className="ooda-sub-content">
-                                                <button
-                                                    type="button"
-                                                    className="ooda-add-note-btn"
-                                                    onClick={() => setShowAddPhoneCall(!showAddPhoneCall)}
-                                                >
-                                                    {showAddPhoneCall ? '✕ 取消' : '+ 新增電話記錄'}
-                                                </button>
-                                                {showAddPhoneCall && (
-                                                    <div className="ooda-add-note-form">
-                                                        <input
-                                                            type="text"
-                                                            placeholder="通話標題"
-                                                            value={newPhoneTitle}
-                                                            onChange={(e) => setNewPhoneTitle(e.target.value)}
-                                                            className="ooda-note-input"
-                                                        />
-                                                        <input
-                                                            type="text"
-                                                            placeholder="電話號碼 (例: 02-1234-5678)"
-                                                            value={newPhoneNumber}
-                                                            onChange={(e) => setNewPhoneNumber(e.target.value)}
-                                                            className="ooda-note-input"
-                                                        />
-                                                        <textarea
-                                                            placeholder="通話內容摘要..."
-                                                            value={newPhoneMessage}
-                                                            onChange={(e) => setNewPhoneMessage(e.target.value)}
-                                                            rows={4}
-                                                            className="ooda-note-textarea"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            className="ooda-submit-note-btn"
-                                                            onClick={handleAddPhoneCall}
-                                                            disabled={submittingPhoneCall}
-                                                        >
-                                                            {submittingPhoneCall ? '提交中...' : '📞 儲存電話記錄'}
-                                                        </button>
-                                                    </div>
-                                                )}
-                                                {loadingPhoneCalls ? (
-                                                    <div className="ooda-loading">載入中...</div>
-                                                ) : phoneCalls.length === 0 ? (
-                                                    <div className="ooda-empty">尚無電話記錄</div>
-                                                ) : (
-                                                    <div className="ooda-notes-list">
-                                                        {phoneCalls.map(call => (
-                                                            <div key={call.id} className="ooda-note-item">
-                                                                <div className="ooda-note-header">
-                                                                    <span className="ooda-note-title">📞 {call.title}</span>
-                                                                    <span className="ooda-note-date">{call.date}</span>
-                                                                </div>
-                                                                <div className="ooda-note-content">電話: {call.phone}</div>
-                                                                <div className="ooda-note-content">{call.message}</div>
-                                                                <div className="ooda-note-author">— {call.author}</div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
 
                                         {/* Task Sub Tab */}
                                         {activitySubTab === 'task' && (
@@ -1114,18 +954,10 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                             onChange={(e) => setNewTaskTitle(e.target.value)}
                                                             className="ooda-note-input"
                                                         />
-                                                        <select
-                                                            value={newTaskPriority}
-                                                            onChange={(e) => setNewTaskPriority(e.target.value)}
-                                                            className="ooda-note-input"
-                                                        >
-                                                            <option value="High">高優先級</option>
-                                                            <option value="Medium">中優先級</option>
-                                                            <option value="Low">低優先級</option>
-                                                        </select>
+
                                                         <input
                                                             type="date"
-                                                            placeholder="到期日"
+                                                            placeholder="完成日期"
                                                             value={newTaskDueDate}
                                                             onChange={(e) => setNewTaskDueDate(e.target.value)}
                                                             className="ooda-note-input"
@@ -1168,28 +1000,67 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                 )}
                                             </div>
                                         )}
-                                    </div>
-                                )}
 
-                                {activitySubTab === 'event' && (
-                                    <div className="ooda-activity-list">
-                                        {/* No Add Event Button per scope, only view */}
-                                        {loadingEvents ? (
-                                            <div className="ooda-loading">載入中...</div>
-                                        ) : events.length === 0 ? (
-                                            <div className="ooda-empty">尚無行程記錄</div>
-                                        ) : (
-                                            <div className="ooda-activity-items">
-                                                {events.map(event => (
-                                                    <div key={event.id} className="ooda-activity-item">
-                                                        <div className="ooda-activity-header">
-                                                            <span className="ooda-activity-title">🗓️ {event.title}</span>
-                                                            <span className="ooda-activity-date">{event.date}</span>
-                                                        </div>
-                                                        <div className="ooda-activity-message">{event.message}</div>
-                                                        <div className="ooda-activity-meta">建立者: {event.author}</div>
+                                        {activitySubTab === 'event' && (
+                                            <div className="ooda-sub-content">
+                                                <button
+                                                    type="button"
+                                                    className="ooda-add-note-btn"
+                                                    onClick={() => setShowAddEvent(!showAddEvent)}
+                                                >
+                                                    {showAddEvent ? '✕ 取消' : '+ 新增行程'}
+                                                </button>
+                                                {showAddEvent && (
+                                                    <div className="ooda-add-note-form">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="行程標題"
+                                                            value={newEventTitle}
+                                                            onChange={(e) => setNewEventTitle(e.target.value)}
+                                                            className="ooda-note-input"
+                                                        />
+                                                        <input
+                                                            type="date"
+                                                            placeholder="日期"
+                                                            value={newEventDate}
+                                                            onChange={(e) => setNewEventDate(e.target.value)}
+                                                            className="ooda-note-input"
+                                                        />
+                                                        <textarea
+                                                            placeholder="行程備註..."
+                                                            value={newEventMessage}
+                                                            onChange={(e) => setNewEventMessage(e.target.value)}
+                                                            rows={4}
+                                                            className="ooda-note-textarea"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            className="ooda-submit-note-btn"
+                                                            onClick={handleAddEvent}
+                                                            disabled={submittingEvent}
+                                                        >
+                                                            {submittingEvent ? '提交中...' : '📅 建立行程'}
+                                                        </button>
                                                     </div>
-                                                ))}
+                                                )}
+                                                {loadingEvents ? (
+                                                    <div className="ooda-loading">載入中...</div>
+                                                ) : events.length === 0 ? (
+                                                    <div className="ooda-empty">尚無行程記錄</div>
+                                                ) : (
+                                                    <div className="ooda-activity-items">
+                                                        {events.map(event => (
+                                                            <div key={event.id} className="ooda-activity-item">
+                                                                <div className="ooda-activity-header">
+                                                                    <span className="ooda-activity-title">🗓️ {event.title}</span>
+                                                                    <span className="ooda-activity-date">{event.date}</span>
+                                                                </div>
+                                                                <div className="ooda-activity-message">{event.message}</div>
+                                                                <div className="ooda-activity-meta">建立者: {event.author}</div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -1298,7 +1169,6 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                     weeklyNotes={weeklyNotes}
                     activities={{
                         emails: emails,
-                        phoneCalls: phoneCalls,
                         tasks: tasks,
                         events: events
                     }}
@@ -1306,7 +1176,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                     formData={formData}
                     onClose={() => setShowEmailComposer(false)}
                     onSuccess={() => {
-                        loadEmails();
+                        // Email sent
                     }}
                 />
             )}
