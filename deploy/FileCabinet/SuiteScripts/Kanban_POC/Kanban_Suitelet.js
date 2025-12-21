@@ -245,61 +245,50 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
         };
 
         /**
-         * Get User Notes for an Opportunity (using ONLY record.load)
-         * DIRECT SUBLIST ACCESS - Bypass all Search/Index logic.
+         * Get User Notes for an Opportunity
+         * USER PROVIDED QUERY - VERIFIED WORKING
          */
         const getUserNotes = (opportunityId) => {
             try {
                 if (!opportunityId) return { success: true, notes: [] };
 
-                const notes = [];
-                // Force ID to be a Number just in case
-                const recId = Number(opportunityId);
-                log.audit('GetNotes:LoadingRecord', 'ID: ' + recId);
+                const sql = `
+                    SELECT 
+                        tn.ID as id,
+                        tn.Title as title,
+                        tn.Note as note,
+                        tn.NoteDate as date,
+                        BUILTIN.DF(tn.Author) as author
+                    FROM 
+                        Transaction t
+                    INNER JOIN 
+                        TransactionNote tn ON tn.Transaction = t.ID
+                    INNER JOIN 
+                        Employee e ON e.ID = tn.Author
+                    WHERE 
+                        t.ID = ?
+                    ORDER BY 
+                        tn.NoteDate DESC
+                `;
 
-                // 1. Load the Opportunity Record directly
-                const oppRecord = record.load({
-                    type: record.Type.OPPORTUNITY,
-                    id: recId,
-                    isDynamic: false
-                });
+                const results = query.runSuiteQL({
+                    query: sql,
+                    params: [opportunityId]
+                }).asMappedResults();
 
-                // 2. Iterate the 'usernotes' sublist
-                // This is the specific sublist for "User Notes" under Communication tab
-                const lineCount = oppRecord.getLineCount({ sublistId: 'usernotes' });
-                log.audit('GetNotes:LineCount', lineCount);
+                const notes = results.map(r => ({
+                    id: r.id,
+                    title: r.title || 'Untitled',
+                    note: r.note || '',
+                    date: r.date || '',
+                    author: r.author || 'Unknown'
+                }));
 
-                for (let i = 0; i < lineCount; i++) {
-                    const title = oppRecord.getSublistValue({ sublistId: 'usernotes', fieldId: 'title', line: i });
-                    const noteContent = oppRecord.getSublistValue({ sublistId: 'usernotes', fieldId: 'note', line: i });
-                    const noteDate = oppRecord.getSublistValue({ sublistId: 'usernotes', fieldId: 'notedate', line: i });
-
-                    // Author is often a select field
-                    let authorName = '';
-                    try {
-                        authorName = oppRecord.getSublistText({ sublistId: 'usernotes', fieldId: 'author', line: i });
-                    } catch (err) {
-                        // Fallback if getText fails
-                        authorName = oppRecord.getSublistValue({ sublistId: 'usernotes', fieldId: 'author', line: i });
-                    }
-
-                    // Log first item to debug fields if needed
-                    if (i === 0) log.audit('GetNotes:FirstItem', JSON.stringify({ title, date: noteDate, author: authorName }));
-
-                    notes.push({
-                        id: 'note_' + i,  // Generate a frontend ID
-                        title: title || 'Untitled',
-                        note: noteContent || '',
-                        date: String(noteDate),
-                        author: authorName || 'Unknown'
-                    });
-                }
-
+                log.debug('Notes Found (UserSQ)', notes.length);
                 return { success: true, notes: notes };
             } catch (e) {
-                log.error('GetNotes:Error', e.message);
-                // Return empty array instead of failure so UI doesn't crash, but log error
-                return { success: false, error: e.message, notes: [] };
+                log.error('Get Notes Error (UserSQ)', e.message);
+                return { success: false, error: e.message };
             }
         };
 
