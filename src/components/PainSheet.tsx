@@ -106,7 +106,6 @@ export function PainSheet({ opportunityId, contactId, contactName, contactTitle,
                 {/* Header */}
                 <div className="pain-sheet-header">
                     <h2 className="pain-sheet-title">
-                        <span className="pain-sheet-icon">📋</span>
                         痛苦表 - {contactName}
                     </h2>
                     <button className="pain-sheet-close" onClick={onClose}>
@@ -251,7 +250,7 @@ export function PainSheet({ opportunityId, contactId, contactName, contactTitle,
                         align-items: center;
                         justify-content: space-between;
                         padding: 16px 24px;
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        background: #336179;
                         color: white;
                     }
 
@@ -262,10 +261,6 @@ export function PainSheet({ opportunityId, contactId, contactName, contactTitle,
                         display: flex;
                         align-items: center;
                         gap: 8px;
-                    }
-
-                    .pain-sheet-icon {
-                        font-size: 24px;
                     }
 
                     .pain-sheet-close {
@@ -317,8 +312,8 @@ export function PainSheet({ opportunityId, contactId, contactName, contactTitle,
 
                     .pain-sheet-info-row input:focus {
                         outline: none;
-                        border-color: #667eea;
-                        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+                        border-color: #336179;
+                        box-shadow: 0 0 0 3px rgba(51, 97, 121, 0.1);
                     }
 
                     .pain-sheet-table-container {
@@ -390,8 +385,8 @@ export function PainSheet({ opportunityId, contactId, contactName, contactTitle,
 
                     .pain-sheet-table textarea:focus {
                         outline: none;
-                        border-color: #667eea;
-                        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+                        border-color: #336179;
+                        box-shadow: 0 0 0 2px rgba(51, 97, 121, 0.1);
                     }
 
                     .pain-sheet-footer {
@@ -423,14 +418,15 @@ export function PainSheet({ opportunityId, contactId, contactName, contactTitle,
                     }
 
                     .pain-sheet-btn-save {
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        background: #336179;
                         border: none;
                         color: white;
                     }
 
                     .pain-sheet-btn-save:hover {
+                        background: #2c5469;
                         transform: translateY(-1px);
-                        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+                        box-shadow: 0 4px 12px rgba(51, 97, 121, 0.2);
                     }
                 `}</style>
             </div>

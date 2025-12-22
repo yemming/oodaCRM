@@ -1,11 +1,45 @@
 @import "tailwindcss";
 
+/* Google Fonts Import */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
+:root {
+  /* Primary Brand Colors */
+  --color-primary: #1F3A4C;    /* Deep Ocean Blue */
+  --color-primary-light: #2C526D;
+  --color-accent: #3B82F6;     /* Action Blue */
+  
+  /* Status Colors */
+  --color-success: #10B981;    /* Emerald */
+  --color-warning: #F59E0B;    /* Warm Orange */
+  --color-danger: #EF4444;     /* Red */
+  
+  /* Backgrounds */
+  --color-bg-app: #f4f6f8;     /* Main App Background */
+  --color-bg-card: #FFFFFF;    /* Card White */
+  --color-bg-subtle: #F8FAFC;  /* Subtle Gray backgrounds */
+
+  /* Text Colors */
+  --color-text-main: #1A202C;  /* Dark Slate */
+  --color-text-secondary: #64748B; /* Meta text */
+  --color-text-muted: #94A3B8; /* Muted text */
+
+  /* Fonts */
+  --font-heading: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
+}
+
 /* Reset margin/padding for NetSuite embedding */
 html,
-body {
+body,
+#root {
   margin: 0 !important;
   padding: 0 !important;
-  background-color: #F5F5F5 !important;
+  background-color: var(--color-bg-app) !important;
+  font-family: var(--font-body);
+  color: var(--color-text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {

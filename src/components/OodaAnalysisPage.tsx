@@ -140,7 +140,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
             const result = await callN8N(payload);
 
             if (!result.success) {
-                setAiInsight('⚠️ ' + (result.error || 'AI 分析請求失敗'));
+                setAiInsight('Error: ' + (result.error || 'AI 分析請求失敗'));
                 setLoadingAI(false);
                 return;
             }
@@ -218,7 +218,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
             const result = await callN8N(payload);
 
             if (!result.success) {
-                setAiInsight('⚠️ ' + (result.error || 'JEP 生成失敗'));
+                setAiInsight('Error: ' + (result.error || 'JEP 生成失敗'));
                 setLoadingAI(false);
                 return;
             }
@@ -254,7 +254,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
     const handleDiscoveryCall = async () => {
         setAiTabMode('insight'); // Switch to insight mode
         setLoadingAI(true);
-        setAiInsight('🔍 正在進行 Discovery 調研 (分析商機、產業、競品)...');
+        setAiInsight('正在進行 Discovery 調研 (分析商機、產業、競品)...');
 
         try {
             // Import n8nApi dynamically
@@ -281,7 +281,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
             const result = await callN8N(payload);
 
             if (!result.success) {
-                setAiInsight('⚠️ ' + (result.error || 'Discovery 調研失敗'));
+                setAiInsight('Error: ' + (result.error || 'Discovery 調研失敗'));
                 setLoadingAI(false);
                 return;
             }
@@ -388,7 +388,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
             setLoadingAI(true);
             // Only set AI text if empty or error, don't overwrite if it's just background loading? 
             // Actually it's fine.
-            if (!aiInsight) setAiInsight('🔄 正在載入資料...');
+            if (!aiInsight) setAiInsight('正在載入資料...');
             loadData().finally(() => setLoadingAI(false));
         }
     }, [opportunity.id, contactsLoaded, loadingAI]);
@@ -479,7 +479,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
             setNewNoteContent('');
             setShowAddNote(false);
         } else {
-            alert('新增週報失敗: ' + (result.error || '未知錯誤'));
+            alert('新增進程失敗: ' + (result.error || '未知錯誤'));
         }
     };
 
@@ -804,6 +804,9 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                 >
                     {contact.name}
                 </span>
+                {contact.title && (
+                    <span className="ooda-contact-chip-title">{contact.title}</span>
+                )}
             </div>
         );
     };
@@ -874,48 +877,39 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                             </div>
                         </div>
                         <div className="ooda-header-center">
-                            <div className="ooda-customer">
+                            <div className="ooda-kpi-card">
                                 <span className="ooda-label">客戶</span>
                                 <a
-                                    href={`/ app / common / entity / custjob.nl ? id = ${opportunity.customerId} `}
+                                    href={`/app/common/entity/custjob.nl?id=${opportunity.customerId}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="ooda-customer-link"
-                                    style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                    className="ooda-value text-blue-600 hover:underline"
+                                    style={{ fontSize: '0.9rem' }}
                                 >
                                     {opportunity.customer}
                                 </a>
                             </div>
-                            <div className="ooda-amount">
+                            <div className="ooda-kpi-card">
                                 <span className="ooda-label">預計金額</span>
-                                <span className="ooda-value">${opportunity.amount.toLocaleString()}</span>
+                                <span className="ooda-value ooda-value-success">
+                                    ${opportunity.amount.toLocaleString()}
+                                </span>
                             </div>
-                        </div>
-                        <div className="ooda-header-right">
-                            <div className="ooda-close-date">
+                            <div className="ooda-kpi-card">
                                 <span className="ooda-label">預計成案日</span>
                                 <span className="ooda-value">{opportunity.closeDate}</span>
                             </div>
-                            <div className="ooda-probability" style={{ marginLeft: '24px' }}>
+                            <div className="ooda-kpi-card">
                                 <span className="ooda-label">成交機率</span>
-                                <span className="ooda-value" style={{ color: '#2563eb', fontWeight: 'bold' }}>{formData.probability}%</span>
+                                <span className="ooda-value ooda-value-accent">{formData.probability}%</span>
                             </div>
+                        </div>
+                        <div className="ooda-header-right">
                             <button
-                                className="ooda-save-btn"
+                                className={`ooda-save-btn ${saveSuccess === true ? 'success' : saveSuccess === false ? 'error' : ''}`}
                                 onClick={handleSaveContacts}
                                 disabled={isSaving}
-                                style={{
-                                    marginLeft: '16px',
-                                    padding: '8px 16px',
-                                    background: saveSuccess === true ? '#10b981' : saveSuccess === false ? '#ef4444' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    color: 'white',
-                                    fontWeight: 600,
-                                    cursor: isSaving ? 'not-allowed' : 'pointer',
-                                    opacity: isSaving ? 0.7 : 1,
-                                    transition: 'all 0.2s'
-                                }}
+                                style={{ marginLeft: '12px' }}
                             >
                                 {isSaving ? '儲存中...' : saveSuccess === true ? '✓ 已儲存' : saveSuccess === false ? '✗ 失敗' : '儲存'}
                             </button>
@@ -932,19 +926,19 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                     <div className="ooda-main">
                         {/* Activity Timeline (Left Column) */}
                         <div className="ooda-column ooda-timeline">
-                            <h2 className="ooda-section-title">Observe - 活動時間軸</h2>
+                            <h2 className="ooda-section-title">Observe - 態勢觀察</h2>
 
                             {/* Details / Memo Section */}
                             <div className="ooda-details-section" style={{ marginBottom: '15px', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                                    <label style={{ fontWeight: 'bold', fontSize: '14px', color: '#475569' }}>Details</label>
+                                    <label style={{ fontWeight: 'bold', fontSize: '14px', color: '#475569' }}>BANT(Budget/Authority/Need/Timing)</label>
                                 </div>
                                 <textarea
                                     value={details}
                                     onChange={(e) => setDetails(e.target.value)}
                                     style={{
                                         width: '100%',
-                                        minHeight: '320px',
+                                        minHeight: '220px',
                                         padding: '8px',
                                         borderRadius: '6px',
                                         border: '1px solid #cbd5e1',
@@ -961,7 +955,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                     className={`ooda-tab ${activeTab === 'activity' ? 'active' : ''}`}
                                     onClick={() => setActiveTab('activity')}
                                 >
-                                    📋 Activities
+                                    交涉動態
                                 </button>
                                 <button
                                     type="button"
@@ -969,7 +963,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                     className={`ooda-tab ${activeTab === 'weekly' ? 'active' : ''}`}
                                     onClick={() => setActiveTab('weekly')}
                                 >
-                                    📝 User Note
+                                    進程復盤
                                 </button>
                                 <button
                                     type="button"
@@ -977,7 +971,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                     className={`ooda-tab ${activeTab === 'ai' ? 'active' : ''}`}
                                     onClick={() => setActiveTab('ai')}
                                 >
-                                    🤖 AI 數據
+                                    AI 教練
                                 </button>
                             </div>
 
@@ -993,11 +987,11 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                 disabled={loadingAI}
                                                 style={{
                                                     flex: 1,
-                                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                                    background: '#336179',
                                                     color: 'white'
                                                 }}
                                             >
-                                                🔍 Discovery Call
+                                                Discovery Call 建議
                                             </button>
                                             <button
                                                 type="button"
@@ -1006,7 +1000,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                 disabled={loadingAI}
                                                 style={{ flex: 1 }}
                                             >
-                                                {loadingAI ? '✨ 分析中...' : '🪄 生成 AI 洞察'}
+                                                {loadingAI ? '分析中...' : '生成 AI 洞察'}
                                             </button>
                                             <button
                                                 type="button"
@@ -1014,12 +1008,12 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                 onClick={() => setAiTabMode('email')}
                                                 style={{
                                                     flex: 1,
-                                                    background: aiTabMode === 'email' ? '#7c3aed' : 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
+                                                    background: aiTabMode === 'email' ? '#1e293b' : '#336179',
                                                     color: 'white',
                                                     opacity: aiTabMode === 'email' ? 1 : 0.9
                                                 }}
                                             >
-                                                🤖 AI 建議郵件
+                                                AI 建議郵件
                                             </button>
                                             <button
                                                 type="button"
@@ -1028,11 +1022,11 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                 disabled={loadingAI}
                                                 style={{
                                                     flex: 1,
-                                                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                                    background: '#336179',
                                                     color: 'white'
                                                 }}
                                             >
-                                                🚀 生成 JEP
+                                                生成 JEP 建議
                                             </button>
                                         </div>
 
@@ -1070,7 +1064,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                 scorecardData={{ ...formData, scorecardChecks }}
                                                 formData={formData}
                                                 onSuccess={() => {
-                                                    setAiInsight(prev => prev + '\n\n✅ 郵件已發送成功！');
+                                                    setAiInsight(prev => prev + '\n\n郵件已發送成功！');
                                                     setAiTabMode('insight'); // Switch back after success
                                                 }}
                                                 onCancel={() => setAiTabMode('insight')}
@@ -1086,7 +1080,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                             className="ooda-add-note-btn"
                                             onClick={() => setShowAddNote(!showAddNote)}
                                         >
-                                            {showAddNote ? '✕ Cancel' : '+ Add Note'}
+                                            {showAddNote ? '取消' : '新增進程'}
                                         </button>
 
                                         {/* Add Note Form */}
@@ -1094,13 +1088,13 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                             <div className="ooda-add-note-form">
                                                 <input
                                                     type="text"
-                                                    placeholder="週報標題 (例: 週報 - W52)"
+                                                    placeholder="進程標題"
                                                     value={newNoteTitle}
                                                     onChange={(e) => setNewNoteTitle(e.target.value)}
                                                     className="ooda-note-input"
                                                 />
                                                 <textarea
-                                                    placeholder="週報內容..."
+                                                    placeholder="進程內容..."
                                                     value={newNoteContent}
                                                     onChange={(e) => setNewNoteContent(e.target.value)}
                                                     rows={4}
@@ -1112,7 +1106,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                     onClick={handleAddNote}
                                                     disabled={submittingNote}
                                                 >
-                                                    {submittingNote ? '提交中...' : '提交週報'}
+                                                    {submittingNote ? '提交中...' : '提交進程'}
                                                 </button>
                                             </div>
                                         )}
@@ -1121,13 +1115,13 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                         {loadingNotes ? (
                                             <div className="ooda-loading">載入中...</div>
                                         ) : weeklyNotes.length === 0 ? (
-                                            <div className="ooda-empty">尚無週報記錄</div>
+                                            <div className="ooda-empty">尚無進程記錄</div>
                                         ) : (
                                             <div className="ooda-notes-list">
                                                 {weeklyNotes.map(note => (
                                                     <div key={note.id} className="ooda-note-item">
                                                         <div className="ooda-note-header">
-                                                            <span className="ooda-note-title">📊 {note.title}</span>
+                                                            <span className="ooda-note-title">{note.title}</span>
                                                             <span className="ooda-note-date">{note.date}</span>
                                                         </div>
                                                         <div className="ooda-note-content">{note.note}</div>
@@ -1147,21 +1141,21 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                 className={`ooda-sub-tab ${activitySubTab === 'all' ? 'active' : ''}`}
                                                 onClick={() => setActivitySubTab('all')}
                                             >
-                                                📑 All
+                                                活動歷程
                                             </button>
                                             <button
                                                 type="button"
                                                 className={`ooda-sub-tab ${activitySubTab === 'task' ? 'active' : ''}`}
                                                 onClick={() => setActivitySubTab('task')}
                                             >
-                                                ✅ Task
+                                                執行項目
                                             </button>
                                             <button
                                                 type="button"
                                                 className={`ooda-sub-tab ${activitySubTab === 'event' ? 'active' : ''}`}
                                                 onClick={() => setActivitySubTab('event')}
                                             >
-                                                🗓️ Event
+                                                商務會晤
                                             </button>
                                         </div>
 
@@ -1183,93 +1177,55 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                     }
 
                                                     return (
-                                                        <div className="ooda-timeline-container" style={{
-                                                            position: 'relative',
-                                                            padding: '20px 0 20px 20px',
-                                                            maxWidth: '800px',
-                                                            margin: '0 auto'
-                                                        }}>
+                                                        <div className="ooda-timeline-container">
                                                             {/* Vertical Line */}
-                                                            <div style={{
-                                                                position: 'absolute',
-                                                                left: '29px',
-                                                                top: '20px',
-                                                                bottom: '20px',
-                                                                width: '2px',
-                                                                background: '#e5e7eb',
-                                                                zIndex: 0
-                                                            }}></div>
+                                                            <div className="ooda-timeline-line"></div>
 
                                                             {allActivities.map((item) => (
-                                                                <div key={`${item.type}-${item.id}`} className="ooda-timeline-item" style={{
-                                                                    display: 'flex',
-                                                                    gap: '20px',
-                                                                    marginBottom: '24px',
-                                                                    position: 'relative',
-                                                                    zIndex: 1
-                                                                }}>
+                                                                <div key={`${item.type}-${item.id}`} className="ooda-timeline-item">
                                                                     {/* Icon */}
-                                                                    <div className={`ooda-timeline-icon ${item.type}`} style={{
-                                                                        width: '20px',
-                                                                        height: '20px',
-                                                                        borderRadius: '50%',
-                                                                        background: item.type === 'task' ? '#10b981' : item.type === 'event' ? '#3b82f6' : '#8b5cf6',
-                                                                        border: '4px solid white',
-                                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                                                        flexShrink: 0,
-                                                                        marginTop: '4px'
-                                                                    }}></div>
+                                                                    <div className={`ooda-timeline-icon ${item.type}`}>
+                                                                        {item.type === 'task' ? (
+                                                                            <svg viewBox="0 0 20 20" fill="currentColor">
+                                                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                                            </svg>
+                                                                        ) : item.type === 'event' ? (
+                                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                                                                <circle cx="12" cy="7" r="4"></circle>
+                                                                            </svg>
+                                                                        ) : (
+                                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                                                                <polyline points="22,6 12,13 2,6"></polyline>
+                                                                            </svg>
+                                                                        )}
+                                                                    </div>
 
                                                                     {/* Content Card */}
-                                                                    <div className="ooda-timeline-content" style={{
-                                                                        flex: 1,
-                                                                        background: 'white',
-                                                                        borderRadius: '8px',
-                                                                        padding: '16px',
-                                                                        border: '1px solid #e5e7eb',
-                                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                                                                        transition: 'transform 0.2s, box-shadow 0.2s',
-                                                                        cursor: 'pointer'
-                                                                    }}
-                                                                        onMouseEnter={(e) => {
-                                                                            e.currentTarget.style.transform = 'translateY(-2px)';
-                                                                            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
-                                                                        }}
-                                                                        onMouseLeave={(e) => {
-                                                                            e.currentTarget.style.transform = 'translateY(0)';
-                                                                            e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
-                                                                        }}
-                                                                    >
-                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                                                            <span style={{
-                                                                                fontSize: '12px',
-                                                                                fontWeight: 600,
-                                                                                color: item.type === 'task' ? '#059669' : item.type === 'event' ? '#2563eb' : '#7c3aed',
-                                                                                background: item.type === 'task' ? '#ecfdf5' : item.type === 'event' ? '#eff6ff' : '#f5f3ff',
-                                                                                padding: '2px 8px',
-                                                                                borderRadius: '12px'
-                                                                            }}>
-                                                                                {item.type === 'task' ? 'TASK' : item.type === 'event' ? 'EVENT' : 'EMAIL'}
+                                                                    <div className="ooda-timeline-content">
+                                                                        <div style={{ marginBottom: '4px' }}>
+                                                                            <span className="ooda-timeline-badge">
+                                                                                {item.type === 'task' ? '執行項目' : item.type === 'event' ? '商務會晤' : '電子郵件'}
                                                                             </span>
-                                                                            <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                                                                        </div>
+                                                                        <div className="ooda-timeline-header">
+                                                                            <h4 className="ooda-timeline-subject">
+                                                                                {item.type === 'email' ? (item as any).subject : item.title}
+                                                                            </h4>
+                                                                            <span className="ooda-timeline-date">
                                                                                 {item.date}
                                                                             </span>
                                                                         </div>
-                                                                        <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 600, color: '#111827' }}>
-                                                                            {item.type === 'email' ? (item as any).subject : item.title}
-                                                                        </h4>
-                                                                        <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#4b5563', lineHeight: '1.5' }}>
+                                                                        <p className="ooda-timeline-body">
                                                                             {item.type === 'email' ? (
                                                                                 (item as any).body?.substring(0, 100) + ((item as any).body?.length > 100 ? '...' : '')
                                                                             ) : (
                                                                                 (item as any).message || (item as any).note || '(無內容)'
                                                                             )}
                                                                         </p>
-                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#9ca3af' }}>
-                                                                            <span style={{
-                                                                                width: '24px', height: '24px', borderRadius: '50%', background: '#f3f4f6',
-                                                                                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
-                                                                            }}>
+                                                                        <div className="ooda-timeline-footer">
+                                                                            <span className="ooda-avatar-circle">
                                                                                 {(item.type === 'task' ? (item as any).assignee : item.author)?.charAt(0).toUpperCase() || 'U'}
                                                                             </span>
                                                                             <span>
@@ -1292,7 +1248,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                     className="ooda-add-note-btn"
                                                     onClick={() => setShowAddTask(!showAddTask)}
                                                 >
-                                                    {showAddTask ? '✕ 取消' : '+ 新增任務'}
+                                                    {showAddTask ? '取消' : '新增任務'}
                                                 </button>
                                                 {showAddTask && (
                                                     <div className="ooda-add-note-form">
@@ -1324,7 +1280,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                             onClick={handleAddTask}
                                                             disabled={submittingTask}
                                                         >
-                                                            {submittingTask ? '提交中...' : '✅ 建立任務'}
+                                                            {submittingTask ? '提交中...' : '建立任務'}
                                                         </button>
                                                     </div>
                                                 )}
@@ -1337,7 +1293,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                         {tasks.map(task => (
                                                             <div key={task.id} className="ooda-note-item">
                                                                 <div className="ooda-note-header">
-                                                                    <span className="ooda-note-title">✅ {task.title}</span>
+                                                                    <span className="ooda-note-title">{task.title}</span>
                                                                     <span className="ooda-note-date">到期: {task.dueDate}</span>
                                                                 </div>
                                                                 <div className="ooda-note-content">優先級: {task.priority} | 狀態: {task.status}</div>
@@ -1357,7 +1313,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                     className="ooda-add-note-btn"
                                                     onClick={() => setShowAddEvent(!showAddEvent)}
                                                 >
-                                                    {showAddEvent ? '✕ 取消' : '+ 新增行程'}
+                                                    {showAddEvent ? '取消' : '新增行程'}
                                                 </button>
                                                 {showAddEvent && (
                                                     <div className="ooda-add-note-form">
@@ -1388,7 +1344,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                             onClick={handleAddEvent}
                                                             disabled={submittingEvent}
                                                         >
-                                                            {submittingEvent ? '提交中...' : '📅 建立行程'}
+                                                            {submittingEvent ? '提交中...' : '建立行程'}
                                                         </button>
                                                     </div>
                                                 )}
@@ -1401,7 +1357,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                         {events.map(event => (
                                                             <div key={event.id} className="ooda-activity-item">
                                                                 <div className="ooda-activity-header">
-                                                                    <span className="ooda-activity-title">🗓️ {event.title}</span>
+                                                                    <span className="ooda-activity-title">{event.title}</span>
                                                                     <span className="ooda-activity-date">{event.date}</span>
                                                                 </div>
                                                                 <div className="ooda-activity-message">{event.message}</div>
@@ -1419,7 +1375,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
 
                         {/* Middle Column - Orient */}
                         <div className="ooda-column ooda-orient">
-                            <h2 className="ooda-section-title">Orient - 購買中心矩陣</h2>
+                            <h2 className="ooda-section-title">Orient - 決策權力圖譜</h2>
 
                             {/* 2x2 Matrix */}
                             <div className="ooda-matrix">

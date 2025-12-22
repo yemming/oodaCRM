@@ -218,15 +218,17 @@ export function OpportunityScorecard({ opportunityId: _opportunityId, initialChe
                             <td className="text-center font-medium">{section.description}</td>
                             <td className="checklist-cell">
                                 {section.items.map(item => (
-                                    <div key={item.id} className="checklist-item">
-                                        <label className={`checkbox-label ${item.checked ? 'checked' : ''}`}>
-                                            <input
-                                                type="checkbox"
-                                                checked={item.checked}
-                                                onChange={() => toggleItem(section.key, item.id)}
-                                            />
+                                    <div key={item.id} className="checklist-item" onClick={() => toggleItem(section.key, item.id)}>
+                                        <div className={`checkbox-label ${item.checked ? 'checked' : ''}`}>
+                                            <div className={`h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-colors ${item.checked ? 'bg-white border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                {item.checked && (
+                                                    <svg className="h-3 w-3 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                    </svg>
+                                                )}
+                                            </div>
                                             <span className="checkbox-text">{item.text}</span>
-                                        </label>
+                                        </div>
                                     </div>
                                 ))}
                             </td>
@@ -306,12 +308,10 @@ export function OpportunityScorecard({ opportunityId: _opportunityId, initialChe
                     font-weight: 500;
                 }
                 .checkbox-text {
-                    color: #475569;
+                    color: #1e293b;
                     line-height: 1.4;
-                }
-                input[type="checkbox"] {
-                    margin-top: 3px;
-                    cursor: pointer;
+                    font-size: 1.05rem;
+                    font-weight: 600;
                 }
             `}</style>
         </div>

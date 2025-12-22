@@ -35,22 +35,13 @@ const styles = {
         flexDirection: 'column' as const
     },
     header: {
-        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+        background: '#336179',
         padding: '16px 24px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between'
     },
-    headerIcon: {
-        width: '40px',
-        height: '40px',
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        borderRadius: '8px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: '12px'
-    },
+
     body: {
         padding: '24px',
         overflowY: 'auto' as const,
@@ -61,7 +52,7 @@ const styles = {
         backgroundColor: '#f9fafb',
         borderTop: '1px solid #e5e7eb',
         display: 'flex',
-        justifyContent: 'flex-end',
+        justifyContent: 'center',
         gap: '12px'
     },
     grid: {
@@ -102,8 +93,8 @@ const styles = {
     uploadBtn: {
         padding: '10px 20px',
         background: 'white',
-        color: '#059669',
-        border: '1px solid #059669',
+        color: '#336179',
+        border: '1px solid #336179',
         borderRadius: '6px',
         fontSize: '14px',
         fontWeight: 600,
@@ -112,7 +103,7 @@ const styles = {
     },
     actionBtn: {
         padding: '10px 20px',
-        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+        background: '#336179',
         color: 'white',
         border: 'none',
         borderRadius: '8px',
@@ -315,9 +306,6 @@ export const BusinessCardUploadModal = ({ onClose, isStandalone = false }: Busin
                 {/* Header */}
                 <div style={styles.header}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <div style={styles.headerIcon}>
-                            <span style={{ fontSize: '20px' }}>📇</span>
-                        </div>
                         <div>
                             <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: 'white' }}>
                                 名片 OCR 辨識
@@ -338,6 +326,12 @@ export const BusinessCardUploadModal = ({ onClose, isStandalone = false }: Busin
 
                 {/* Body */}
                 <div style={styles.body}>
+                    {error && (
+                        <div style={{ padding: '12px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#b91c1c', marginBottom: '16px', fontSize: '14px' }}>
+                            {error}
+                        </div>
+                    )}
+
                     {!result ? (
                         /* Upload State */
                         <>
@@ -349,7 +343,6 @@ export const BusinessCardUploadModal = ({ onClose, isStandalone = false }: Busin
                                     e.preventDefault();
                                     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
                                         setFile(e.dataTransfer.files[0]);
-                                        // TODO: handle preview logic same as onChange
                                     }
                                 }}
                             >
@@ -367,19 +360,17 @@ export const BusinessCardUploadModal = ({ onClose, isStandalone = false }: Busin
                                         <button type="button" style={styles.uploadBtn}>更換圖片</button>
                                     </div>
                                 ) : (
-                                    <>
-                                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>☁️</div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                        <div style={{ fontSize: '48px', marginBottom: '16px', color: '#cbd5e1' }}>
+                                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                                            </svg>
+                                        </div>
                                         <h3 style={{ margin: '0 0 8px 0', color: '#111827' }}>點擊或拖曳上傳名片</h3>
                                         <p style={{ margin: 0, color: '#6b7280', fontSize: '14px' }}>支援 JPG, PNG, PDF 格式</p>
-                                    </>
+                                    </div>
                                 )}
                             </div>
-
-                            {error && (
-                                <div style={{ padding: '12px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#b91c1c', marginBottom: '16px' }}>
-                                    {error}
-                                </div>
-                            )}
 
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
                                 <button
@@ -394,16 +385,15 @@ export const BusinessCardUploadModal = ({ onClose, isStandalone = false }: Busin
                                         cursor: (!file || isAnalyzing) ? 'not-allowed' : 'pointer'
                                     }}
                                 >
-                                    {isAnalyzing ? '🔄 正在分析名片...' : '✨ 開始辨識'}
+                                    {isAnalyzing ? '正在分析名片...' : '開始辨識'}
                                 </button>
                             </div>
                         </>
                     ) : (
                         /* Result State */
                         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', padding: '12px', backgroundColor: '#ecfdf5', borderRadius: '8px', border: '1px solid #a7f3d0', flexShrink: 0 }}>
-                                <span style={{ marginRight: '8px' }}>✅</span>
-                                <span style={{ color: '#047857', fontSize: '14px', fontWeight: 500 }}>辨識成功！請確認以下資訊</span>
+                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', padding: '12px', backgroundColor: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe', flexShrink: 0 }}>
+                                <span style={{ color: '#1e40af', fontSize: '14px', fontWeight: 500 }}>辨識成功！請確認以下資訊</span>
                             </div>
 
                             <div style={{ display: 'flex', gap: '24px', flex: 1, minHeight: 0 }}>
@@ -426,7 +416,10 @@ export const BusinessCardUploadModal = ({ onClose, isStandalone = false }: Busin
                                         )}
                                     </div>
                                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                                        <button type="button" style={styles.cancelBtn} onClick={() => setResult(null)}>重新上傳</button>
+                                        <button type="button" style={styles.cancelBtn} onClick={() => {
+                                            setResult(null);
+                                            setError(null);
+                                        }}>重新上傳</button>
                                     </div>
                                 </div>
 
@@ -461,8 +454,19 @@ export const BusinessCardUploadModal = ({ onClose, isStandalone = false }: Busin
 
                 {/* Footer */}
                 <div style={styles.footer}>
-                    <button type="button" style={styles.cancelBtn} onClick={onClose}>
-                        取消
+                    <button
+                        type="button"
+                        style={{ ...styles.cancelBtn, flex: 1, justifyContent: 'center' }}
+                        onClick={() => {
+                            if (result) {
+                                setResult(null);
+                                setError(null);
+                            } else {
+                                onClose();
+                            }
+                        }}
+                    >
+                        {result ? '重新上傳' : '取消'}
                     </button>
 
                     {result && (
@@ -470,13 +474,15 @@ export const BusinessCardUploadModal = ({ onClose, isStandalone = false }: Busin
                             type="button"
                             style={{
                                 ...styles.actionBtn,
+                                flex: 1,
+                                justifyContent: 'center',
                                 opacity: isAnalyzing ? 0.7 : 1,
                                 cursor: isAnalyzing ? 'not-allowed' : 'pointer'
                             }}
                             onClick={handleCreateRecords}
                             disabled={isAnalyzing}
                         >
-                            {isAnalyzing ? '⏳ 處理中...' : '建立客戶與聯絡人'}
+                            {isAnalyzing ? '處理中...' : '建立客戶與聯絡人'}
                         </button>
                     )}
                 </div>

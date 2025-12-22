@@ -26,7 +26,7 @@
 
 /* Modal Content */
 .ooda-modal-content {
-  background: #f8fafc;
+  background: var(--color-bg-card);
   border-radius: 16px;
   width: 100%;
   max-width: 1400px;
@@ -35,6 +35,7 @@
   display: flex;
   flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  font-family: var(--font-body);
 }
 
 /* Header */
@@ -52,83 +53,88 @@
 }
 
 .ooda-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1e293b;
+  font-family: var(--font-body);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
   margin: 0;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 .ooda-meta {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .ooda-id {
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  letter-spacing: 0.05em;
 }
 
 .ooda-status-badge {
   font-size: 0.75rem;
-  background: #dbeafe;
-  color: #1d4ed8;
-  padding: 2px 10px;
+  background: #e0f2fe;
+  /* Light Blue 100 */
+  color: var(--color-primary-light);
+  padding: 4px 12px;
   border-radius: 9999px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .ooda-header-center {
   display: flex;
-  gap: 24px;
-  margin-right: 20px;
+  gap: 12px;
+  flex: 1;
+  justify-content: center;
 }
 
-.ooda-customer,
-.ooda-amount,
-.ooda-close-date {
+.ooda-kpi-card {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding: 8px 16px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  min-width: 120px;
+  align-items: flex-start;
 }
 
 .ooda-label {
-  font-size: 0.75rem;
+  font-size: 10px;
   color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
 }
 
 .ooda-value {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-/* Make amount more prominent */
-.ooda-amount .ooda-value {
   font-size: 1.125rem;
   font-weight: 700;
-  color: #059669;
-  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #1e293b;
+  font-family: var(--font-body);
+  line-height: 1.2;
 }
 
-.ooda-customer-link {
-  font-size: 0.875rem;
+/* Color overrides for specific values */
+.ooda-value-success {
+  color: #10b981;
+}
+
+.ooda-value-accent {
   color: #2563eb;
-  text-decoration: none;
-}
-
-.ooda-customer-link:hover {
-  text-decoration: underline;
 }
 
 .ooda-header-right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
 }
 
 .ooda-close-btn {
@@ -144,6 +150,37 @@
 .ooda-close-btn:hover {
   background: #f1f5f9;
   color: #1e293b;
+}
+
+.ooda-save-btn {
+  padding: 10px 24px;
+  background: #336179;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(51, 97, 121, 0.2);
+}
+
+.ooda-save-btn:hover:not(:disabled) {
+  background: #2c5469;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(51, 97, 121, 0.3);
+}
+
+.ooda-save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ooda-save-btn.success {
+  background: var(--color-success);
+}
+
+.ooda-save-btn.error {
+  background: var(--color-danger);
 }
 
 /* Main Content - 2 Columns (50:50) */
@@ -199,7 +236,7 @@
 
 .ooda-tab.active {
   background: white;
-  color: #1e293b;
+  color: #336179;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -253,105 +290,118 @@
 }
 
 /* Orient - Middle Column */
+/* Orient - Middle Column */
 .ooda-matrix {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 20px;
-  isolation: isolate;
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .ooda-matrix-cell {
+  background: var(--color-bg-card);
   border-radius: 12px;
-  min-height: 140px;
+  min-height: 160px;
   overflow: visible;
-  border: 2px solid transparent;
-  transition: all 0.2s;
-  position: relative;
-}
-
-/* 用偽元素作為背景，確保背景永遠在內容下方 */
-.ooda-matrix-cell::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 10px;
-  z-index: -1;
-  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-top-width: 4px;
+  /* Color indicator on top */
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
 }
 
 .ooda-matrix-cell:hover {
-  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-.ooda-matrix-cell.champion::before {
-  background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%);
+.ooda-matrix-cell.champion {
+  border-top-color: var(--color-success);
 }
 
-.ooda-matrix-cell.blocker::before {
-  background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
+.ooda-matrix-cell.blocker {
+  border-top-color: var(--color-danger);
 }
 
-.ooda-matrix-cell.low-priority::before,
-.ooda-matrix-cell.low_priority::before {
-  background: linear-gradient(135deg, #f8fafc 0%, #fff 100%);
+.ooda-matrix-cell.low-priority,
+.ooda-matrix-cell.low_priority {
+  border-top-color: var(--color-text-muted);
 }
 
-.ooda-matrix-cell.supporter::before {
-  background: linear-gradient(135deg, #fef9c3 0%, #fefce8 100%);
+.ooda-matrix-cell.supporter {
+  border-top-color: var(--color-warning);
 }
 
 .ooda-cell-header {
-  padding: 10px 14px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #334155;
+  padding: 12px 16px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fafafa;
+  border-radius: 8px 8px 0 0;
 }
 
 .ooda-cell-content {
-  padding: 0 14px 14px 14px;
+  padding: 12px;
   min-height: 80px;
+  flex: 1;
 }
 
 .ooda-placeholder {
-  color: #94a3b8;
-  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
   font-style: italic;
+  text-align: center;
+  margin-top: 20px;
 }
 
 .ooda-contact-chip {
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   background: white;
-  padding: 4px 8px 4px 10px;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  margin: 2px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
   cursor: grab;
-  transition: box-shadow 0.2s, transform 0.2s;
+  transition: all 0.2s ease;
   position: relative;
   z-index: 100;
-  isolation: isolate;
+  color: var(--color-text-main);
+  min-width: 100px;
 }
 
 .ooda-contact-chip:hover {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+  border-color: var(--color-accent);
 }
 
-/* Clickable contact name in chip */
 .ooda-contact-chip-name {
   cursor: pointer;
-  color: #1e293b;
+  color: var(--color-text-main);
+  font-weight: 600;
+  font-size: 0.875rem;
   transition: color 0.2s;
+  line-height: 1.2;
+}
+
+.ooda-contact-chip-title {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+  line-height: 1.2;
 }
 
 .ooda-contact-chip-name:hover {
-  color: #8b5cf6;
+  color: var(--color-accent);
   text-decoration: underline;
 }
 
@@ -359,10 +409,12 @@
 .ooda-contact-name-link {
   cursor: pointer;
   transition: color 0.2s;
+  font-weight: 600;
+  color: var(--color-text-main);
 }
 
 .ooda-contact-name-link:hover {
-  color: #8b5cf6;
+  color: var(--color-accent);
   text-decoration: underline;
 }
 
@@ -482,19 +534,20 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: #f28500;
   border: none;
   cursor: pointer;
   color: white;
   font-size: 0.75rem;
   font-weight: 700;
   transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 4px rgba(242, 133, 0, 0.3);
 }
 
 .ooda-btn:hover {
   transform: scale(1.1);
-  box-shadow: 0 4px 8px rgba(99, 102, 241, 0.4);
+  background: #db7700;
+  box-shadow: 0 4px 8px rgba(242, 133, 0, 0.4);
 }
 
 /* Responsive */
@@ -517,30 +570,40 @@
 }
 
 .ooda-add-note-btn {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  color: white;
-  border: none;
+  background: white;
+  color: #336179;
+  border: 1px solid #336179;
   padding: 10px 16px;
   border-radius: 8px;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  width: 100%;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .ooda-add-note-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  background: #f8fafc;
+  border-color: #336179;
+  color: #336179;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .ooda-add-note-form {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
-  background: #f8fafc;
+  padding: 20px;
+  background: white;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  margin-bottom: 16px;
 }
 
 .ooda-note-input,
@@ -565,19 +628,22 @@
 }
 
 .ooda-submit-note-btn {
-  background: #10b981;
+  background: #336179;
   color: white;
   border: none;
   padding: 10px 16px;
   border-radius: 8px;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  width: 100%;
 }
 
 .ooda-submit-note-btn:hover:not(:disabled) {
-  background: #059669;
+  background: #2c5469;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .ooda-submit-note-btn:disabled {
@@ -644,30 +710,39 @@
 
 .ooda-sub-tabs {
   display: flex;
-  gap: 8px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e2e8f0;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e2e8f0;
 }
 
 .ooda-sub-tab {
-  padding: 6px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: #f8fafc;
-  font-size: 0.75rem;
+  flex: 1;
+  padding: 12px 16px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  border-radius: 0;
   cursor: pointer;
+  color: #94a3b8;
   transition: all 0.2s;
-  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
 }
 
-.ooda-sub-tab:hover {
-  background: #e2e8f0;
+.ooda-sub-tab:hover:not(.active) {
+  color: #64748b;
+  border-bottom-color: #cbd5e1;
 }
 
 .ooda-sub-tab.active {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  color: white;
-  border-color: transparent;
+  color: #336179;
+  border-bottom-color: #336179;
+  font-weight: 700;
 }
 
 /* AI Insight Styles */
@@ -783,4 +858,153 @@
 [data-dnd-kit-overlay] .ooda-contact-chip {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   transform: scale(1.05);
+}
+
+/* ==================================
+   Timeline Styles (Refactored)
+   ================================== */
+.ooda-timeline-container {
+  position: relative;
+  padding: 24px 0 24px 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.ooda-timeline-line {
+  position: absolute;
+  left: 35px;
+  top: 32px;
+  bottom: 0;
+  width: 1px;
+  background: #e2e8f0;
+  z-index: 0;
+}
+
+.ooda-timeline-item {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.ooda-timeline-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 4px;
+  background: white;
+  z-index: 2;
+  transition: all 0.2s;
+}
+
+.ooda-timeline-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Specific colors for icon types */
+.ooda-timeline-icon.task {
+  background: white;
+  border-color: #336179;
+  color: #336179;
+}
+
+.ooda-timeline-icon.event {
+  background: white;
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.ooda-timeline-icon.email {
+  background: white;
+  border-color: #475569;
+  color: #475569;
+}
+
+.ooda-timeline-content {
+  flex: 1;
+  background: var(--color-bg-card);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.ooda-timeline-content:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-color: var(--color-accent);
+}
+
+.ooda-timeline-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  align-items: center;
+}
+
+.ooda-timeline-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #64748b;
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+}
+
+.ooda-timeline-date {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.ooda-timeline-subject {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: -4px 0 8px 0;
+}
+
+.ooda-timeline-body {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin: 0 0 16px 0;
+  display: -webkit-box;
+  line-clamp: 3;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ooda-timeline-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  border-top: 1px solid #f1f5f9;
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.ooda-avatar-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
 }

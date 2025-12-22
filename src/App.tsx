@@ -10,6 +10,7 @@ import {
 } from './services/api';
 import { OodaAnalysisPage } from './components/OodaAnalysisPage';
 import { BusinessCardUploadModal } from './components/BusinessCardUploadModal';
+import { MultiSelectCheckbox } from './components/MultiSelectCheckbox'; // Import new component
 import {
   DndContext,
   DragOverlay,
@@ -153,26 +154,28 @@ function DroppableColumn({
       <div
         {...attributes}
         {...listeners}
-        className={`flex items-center gap-2 p-3 ${column.headerBg} rounded-t-lg border-b ${column.borderColor} cursor-grab active:cursor-grabbing`}
+        className={`flex items-center justify-between p-3 ${column.headerBg} rounded-t-lg border-b ${column.borderColor} cursor-grab active:cursor-grabbing`}
       >
-        <div className="text-gray-400 mr-1">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="5" cy="5" r="2" /><circle cx="12" cy="5" r="2" /><circle cx="19" cy="5" r="2" />
-            <circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" />
-            <circle cx="5" cy="19" r="2" /><circle cx="12" cy="19" r="2" /><circle cx="19" cy="19" r="2" />
-          </svg>
+        <div className="flex items-center gap-2">
+          {/* Restored Drag Handle */}
+          <div className="text-gray-400 cursor-grab active:cursor-grabbing hover:text-gray-600">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="9" cy="5" r="2" /><circle cx="15" cy="5" r="2" />
+              <circle cx="9" cy="12" r="2" /><circle cx="15" cy="12" r="2" />
+              <circle cx="9" cy="19" r="2" /><circle cx="15" cy="19" r="2" />
+            </svg>
+          </div>
+          <div className={`w-2 h-2 rounded-full ${column.color}`} />
+          <h2 className="text-gray-800 font-bold text-sm">{column.label}</h2>
+          <span className="bg-white/50 text-gray-600 text-xs px-2 py-0.5 rounded-full border border-black/5">
+            {opportunities.length}
+          </span>
         </div>
-        <div className={`w-2.5 h-2.5 rounded-full ${column.color}`} />
-        <h2 className="text-gray-700 font-semibold text-sm">{column.label}</h2>
-        <span className="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full ml-auto">
-          {opportunities.length}
-        </span>
-      </div>
-
-      {/* Column Total */}
-      <div className="px-3 py-1.5 bg-gray-100 border-b border-gray-200">
-        <span className="text-xs text-gray-500">Total: </span>
-        <span className="text-xs font-semibold text-gray-700">{formatCurrency(totalAmount)}</span>
+        <div className="text-right">
+          <span className="text-sm font-bold text-gray-700 font-sans">
+            {formatCurrency(totalAmount)}
+          </span>
+        </div>
       </div>
 
       {/* Cards */}
@@ -194,7 +197,6 @@ function DroppableColumn({
 
 function App() {
   const context = getNetSuiteContext();
-  const isLocal = !context;
 
   // ROUTING LOGIC: Check for Standalone OCR Mode
   if (context?.pageType === 'ocr_standalone') {
@@ -216,12 +218,31 @@ function App() {
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
 
   // Filter states
+  // Filter states - Initialize from localStorage
   const [salesRepOptions, setSalesRepOptions] = useState<SalesRep[]>([]);
   const [dateRangeType, setDateRangeType] = useState<'quarter' | 'month' | 'year' | 'all' | 'custom'>('quarter');
   const [customDateStart, setCustomDateStart] = useState('');
   const [customDateEnd, setCustomDateEnd] = useState('');
-  const [selectedSalesReps, setSelectedSalesReps] = useState<string[]>([]);
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+
+  // Persistent Filters
+  const [selectedSalesReps, setSelectedSalesReps] = useState<string[]>(() => {
+    const saved = localStorage.getItem('kanban-filter-reps');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(() => {
+    const saved = localStorage.getItem('kanban-filter-status');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('kanban-filter-reps', JSON.stringify(selectedSalesReps));
+  }, [selectedSalesReps]);
+
+  useEffect(() => {
+    localStorage.setItem('kanban-filter-status', JSON.stringify(selectedStatuses));
+  }, [selectedStatuses]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -515,112 +536,104 @@ function App() {
     ? opportunities.find((opp) => opp.id === activeId)
     : null;
 
-  const displayedTotal = statusColumns.reduce((sum: number, col: StatusColumn) => sum + getTotalByStatus(col.key), 0);
+
 
   return (
     <>
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="bg-[#F5F5F5] min-h-screen" style={{ margin: '-10px', padding: '0' }}>
-          {/* Header */}
-          <div className="bg-white border-b border-gray-200 px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-lg font-semibold text-gray-800">
-                  Opportunity Pipeline
-                </h1>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {isLocal ? (
-                    <span className="text-amber-600">⚠️ Local Dev Mode</span>
-                  ) : (
-                    <span className="text-green-600">✓ Connected as {context.userName}</span>
-                  )}
-                  <span className="mx-2">|</span>
-                  <span>{opportunities.length} opportunities</span>
-                  <span className="mx-2">|</span>
-                  <span className="font-semibold">{formatCurrency(displayedTotal)} displayed</span>
-                </p>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-3">
-              {/* Removed OCR Button */}
-              {updating && (
-                <div className="text-xs text-blue-600 animate-pulse">
-                  Updating...
-                </div>
-              )}
-            </div>
-          </div>
 
           {/* Filter Bar */}
-          <div className="bg-white border-b border-gray-200 px-4 py-2">
-            <div className="flex flex-wrap gap-3 items-center">
-              {/* Date Range Filter */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-600 font-medium">預計結單日期:</label>
-                <select
-                  value={dateRangeType}
-                  onChange={(e) => setDateRangeType(e.target.value as 'quarter' | 'month' | 'year' | 'all' | 'custom')}
-                  className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
-                >
-                  <option value="quarter">本季</option>
-                  <option value="month">本月</option>
-                  <option value="year">今年</option>
-                  <option value="all">全部</option>
-                  <option value="custom">自訂</option>
-                </select>
-                {dateRangeType === 'custom' && (
-                  <>
-                    <input
-                      type="date"
-                      value={customDateStart}
-                      onChange={(e) => setCustomDateStart(e.target.value)}
-                      className="text-xs border border-gray-300 rounded px-2 py-1"
-                    />
-                    <span className="text-xs text-gray-500">至</span>
-                    <input
-                      type="date"
-                      value={customDateEnd}
-                      onChange={(e) => setCustomDateEnd(e.target.value)}
-                      className="text-xs border border-gray-300 rounded px-2 py-1"
-                    />
-                  </>
+          <div className="bg-white border-b border-gray-200 px-4 py-4">
+            <div className="flex items-center justify-between w-full">
+
+              {/* Left-Aligned Filters */}
+              <div className="flex flex-nowrap gap-8 items-end">
+
+                {/* 1. Total Estimated Amount (First) */}
+                <div className="flex flex-col items-start px-6 py-2 bg-gray-50 border border-gray-100 rounded-lg min-w-[180px]">
+                  <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-0.5 text-left w-full">預估專案總金額</span>
+                  <span className="text-2xl font-bold text-gray-900 font-sans leading-none tracking-tight text-left w-full">
+                    {formatCurrency(filteredOpportunities.reduce((sum, opp) => sum + opp.amount, 0))}
+                  </span>
+                </div>
+
+                {/* 2. Date Range Filter */}
+                <div className="flex flex-col items-start">
+                  <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1 ml-1">預計結單日期</label>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <select
+                        value={dateRangeType}
+                        onChange={(e) => setDateRangeType(e.target.value as 'quarter' | 'month' | 'year' | 'all' | 'custom')}
+                        className="text-sm text-left font-medium border border-gray-300 rounded-md px-4 py-1 bg-white min-w-[110px] appearance-none cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm"
+                      >
+                        <option value="quarter">本季</option>
+                        <option value="month">本月</option>
+                        <option value="year">今年</option>
+                        <option value="all">全部</option>
+                        <option value="custom">自訂</option>
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                    {dateRangeType === 'custom' && (
+                      <>
+                        <input
+                          type="date"
+                          value={customDateStart}
+                          onChange={(e) => setCustomDateStart(e.target.value)}
+                          className="text-sm border border-gray-300 rounded px-2 py-1"
+                        />
+                        <span className="text-base text-gray-500">至</span>
+                        <input
+                          type="date"
+                          value={customDateEnd}
+                          onChange={(e) => setCustomDateEnd(e.target.value)}
+                          className="text-sm border border-gray-300 rounded px-2 py-1"
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. Sales Rep Filter */}
+                <div className="flex flex-col items-start">
+                  <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1 ml-1">業務員</label>
+                  <MultiSelectCheckbox
+                    options={salesRepOptions.map(rep => ({ label: rep.name, value: rep.id }))}
+                    selectedValues={selectedSalesReps}
+                    onChange={setSelectedSalesReps}
+                    placeholder="全部業務員"
+                  />
+                </div>
+
+                {/* 4. Status Filter */}
+                <div className="flex flex-col items-start">
+                  <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1 ml-1">狀態</label>
+                  <MultiSelectCheckbox
+                    options={baseStatusColumns.map(col => ({ label: col.label, value: col.key }))}
+                    selectedValues={selectedStatuses}
+                    onChange={setSelectedStatuses}
+                    placeholder="全部狀態"
+                  />
+                </div>
+              </div>
+
+              {/* Count Info - Right Aligned via justify-between */}
+              <div className="flex items-center gap-3">
+                {updating && (
+                  <div className="text-xs text-blue-600 animate-pulse">
+                    Updating...
+                  </div>
                 )}
-              </div>
-
-              {/* Sales Rep Filter */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-600 font-medium">業務員:</label>
-                <select
-                  multiple
-                  value={selectedSalesReps}
-                  onChange={(e) => setSelectedSalesReps(Array.from(e.target.selectedOptions, opt => opt.value))}
-                  className="text-xs border border-gray-300 rounded px-2 py-1 bg-white min-w-[120px] max-h-[60px]"
-                >
-                  {salesRepOptions.map(rep => (
-                    <option key={rep.id} value={rep.id}>{rep.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Status Filter */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-600 font-medium">狀態:</label>
-                <select
-                  multiple
-                  value={selectedStatuses}
-                  onChange={(e) => setSelectedStatuses(Array.from(e.target.selectedOptions, opt => opt.value))}
-                  className="text-xs border border-gray-300 rounded px-2 py-1 bg-white min-w-[120px] max-h-[60px]"
-                >
-                  {baseStatusColumns.map(col => (
-                    <option key={col.key} value={col.key}>{col.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Filter Count Info */}
-              <div className="ml-auto text-xs text-gray-500">
-                顯示 <span className="font-semibold text-gray-700">{filteredOpportunities.length}</span> / {opportunities.length} 筆
+                <div className="text-xs text-gray-500 whitespace-nowrap">
+                  顯示 <span className="font-bold text-gray-700">{filteredOpportunities.length}</span> / {opportunities.length} 筆
+                </div>
               </div>
             </div>
           </div>
@@ -661,12 +674,14 @@ function App() {
       </DndContext >
 
       {/* OODA Analysis Modal */}
-      {selectedOpportunity && (
-        <OodaAnalysisPage
-          opportunity={selectedOpportunity}
-          onClose={() => setSelectedOpportunity(null)}
-        />
-      )}
+      {
+        selectedOpportunity && (
+          <OodaAnalysisPage
+            opportunity={selectedOpportunity}
+            onClose={() => setSelectedOpportunity(null)}
+          />
+        )
+      }
     </>
   );
 }
