@@ -11,6 +11,8 @@ export type N8NRequestType =
     | 'pain_analysis'   // AI 痛點分析
     | 'meeting_prep'    // AI 會議準備 (未來)
     | 'follow_up'       // AI 跟進建議 (未來)
+    | 'generate_jep'    // 生成 JEP (Joint Engage Plan)
+    | 'discovery_call'  // Discovery Call - 客戶調研
     | 'custom';         // 自訂功能
 
 /**
@@ -86,8 +88,7 @@ export interface PainAnalysisPayload extends N8NBasePayload {
     existingPainData?: any;
 }
 
-// Union type of all payload types
-export type N8NPayload = AIInsightPayload | EmailTemplatePayload | PainAnalysisPayload;
+// Union type moved to bottom of file
 
 /**
  * Get N8N URL from NetSuite context
@@ -183,6 +184,19 @@ export const createAIInsightPayload = (
 });
 
 /**
+ * Helper: Create Discovery Call payload
+ */
+export const createDiscoveryPayload = (
+    opportunity: OpportunityContext,
+    contacts?: any[]
+): DiscoveryPayload => ({
+    requestType: 'discovery_call',
+    opportunityContext: opportunity,
+    timestamp: new Date().toISOString(),
+    contacts: contacts
+});
+
+/**
  * Helper: Create Email Template payload
  * Includes full opportunity data for AI to generate personalized emails
  */
@@ -239,3 +253,52 @@ export const createPainAnalysisPayload = (
     contactTitle: contact.title,
     existingPainData
 });
+
+
+/**
+ * Discovery Call specific payload
+ */
+export interface DiscoveryPayload extends N8NBasePayload {
+    requestType: 'discovery_call';
+    contacts?: any[];       // 聯絡人列表 (用於職稱分析)
+}
+
+// Union type of all payload types
+export type N8NPayload = AIInsightPayload | EmailTemplatePayload | PainAnalysisPayload | JEPPayload | DiscoveryPayload;
+export interface JEPPayload extends N8NBasePayload {
+    requestType: 'generate_jep';
+    buyingCenter?: any[];
+    weeklyNotes?: any[];
+    activities?: {
+        emails?: any[];
+        phoneCalls?: any[];
+        tasks?: any[];
+        events?: any[];
+    };
+    scorecardData?: any;
+    formData?: any;
+}
+
+/**
+ * Helper: Create JEP payload
+ */
+export const createJEPPayload = (
+    opportunity: OpportunityContext,
+    options: {
+        buyingCenter?: any[];
+        weeklyNotes?: any[];
+        activities?: any;
+        scorecardData?: any;
+        formData?: any;
+    }
+): JEPPayload => ({
+    requestType: 'generate_jep',
+    opportunityContext: opportunity,
+    timestamp: new Date().toISOString(),
+    buyingCenter: options.buyingCenter,
+    weeklyNotes: options.weeklyNotes,
+    activities: options.activities,
+    scorecardData: options.scorecardData,
+    formData: options.formData
+});
+

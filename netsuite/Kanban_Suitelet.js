@@ -883,7 +883,7 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
 
                     const firstName = result.getValue('firstname') || '';
                     const lastName = result.getValue('lastname') || '';
-                    const fullName = `${firstName} ${lastName}`.trim() || result.getValue('entityid');
+                    const fullName = `${lastName} ${firstName}`.trim() || result.getValue('entityid');
 
                     contactsMap[internalId] = {
                         id: internalId,

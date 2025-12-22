@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import type { Opportunity, UserNote, EmailRecord, TaskRecord, EventRecord } from '../services/api';
+import type { Opportunity, UserNote, EmailRecord, TaskRecord, EventRecord, ContactRecord } from '../services/api';
 import {
     fetchUserNotes, addUserNote,
     fetchTasks, addTask,
@@ -14,7 +14,7 @@ import {
 } from '../services/api';
 import { OpportunityScorecard } from './OpportunityScorecard';
 import { PainSheet } from './PainSheet';
-import EmailComposerModal from './EmailComposerModal';
+import { EmailComposerInline } from './EmailComposerInline';
 import {
     DndContext,
     DragOverlay,
@@ -49,7 +49,7 @@ interface OodaAnalysisPageProps {
 
 export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps) {
     const [activeTab, setActiveTab] = useState<'ai' | 'weekly' | 'activity'>('activity');
-    const [activitySubTab, setActivitySubTab] = useState<'task' | 'event'>('task');
+    const [activitySubTab, setActivitySubTab] = useState<'all' | 'task' | 'event'>('all'); // Default to 'all'
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [contactsLoaded, setContactsLoaded] = useState(false);
     const [activeContact, setActiveContact] = useState<Contact | null>(null);
@@ -95,7 +95,9 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
         }
     }, [aiInsight]);
 
+    // Generate AI Insight Handler
     const handleGenerateInsight = async () => {
+        setAiTabMode('insight'); // Switch to insight mode
         setLoadingAI(true);
         setAiInsight('正在連線至 AI 分析引擎...');
 
@@ -172,6 +174,141 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
         } catch (error) {
             console.error('AI Insight Error:', error);
             setAiInsight('❌ 分析請求發送失敗: ' + String(error));
+        } finally {
+            setLoadingAI(false);
+        }
+    };
+
+    const handleGenerateJEP = async () => {
+        setAiTabMode('insight'); // Switch to insight mode
+        setLoadingAI(true);
+        setAiInsight('正在生成 JEP (Joint Engage Plan)...');
+
+        try {
+            // Import n8nApi dynamically
+            const { callN8N, createJEPPayload, extractTextFromN8NResponse } = await import('../services/n8nApi');
+
+            // Create payload
+            const payload = createJEPPayload(
+                {
+                    id: opportunity.id,
+                    title: opportunity.title,
+                    customer: opportunity.customer,
+                    customerId: opportunity.customerId,
+                    status: opportunity.status,
+                    statusText: opportunity.statusText,
+                    amount: opportunity.amount,
+                    probability: opportunity.probability,
+                    closeDate: opportunity.closeDate,
+                    salesRep: opportunity.salesRep
+                },
+                {
+                    buyingCenter: contacts,
+                    weeklyNotes: weeklyNotes,
+                    activities: {
+                        emails: emails,
+                        tasks: tasks,
+                        events: events
+                    },
+                    scorecardData: { ...formData, scorecardChecks }
+                }
+            );
+
+            // Call N8N
+            const result = await callN8N(payload);
+
+            if (!result.success) {
+                setAiInsight('⚠️ ' + (result.error || 'JEP 生成失敗'));
+                setLoadingAI(false);
+                return;
+            }
+
+            // Extract text from response
+            const insightText = extractTextFromN8NResponse(result.data);
+            setAiInsight(insightText);
+
+            // Save to NetSuite (optional, we can use the same logic as Insight to save it as "Analysis")
+            try {
+                const saveResult = await saveOodaAnalysis(
+                    opportunity.id,
+                    insightText,
+                    contacts,
+                    payload
+                );
+
+                if (saveResult.success) {
+                    setAiInsight(prev => prev + '\n\n✅ JEP 已自動儲存為最新分析記錄。');
+                }
+            } catch (saveErr) {
+                console.error('Save JEP Exception', saveErr);
+            }
+
+        } catch (error) {
+            console.error('JEP Error:', error);
+            setAiInsight('❌ JEP 生成失敗: ' + String(error));
+        } finally {
+            setLoadingAI(false);
+        }
+    };
+
+    const handleDiscoveryCall = async () => {
+        setAiTabMode('insight'); // Switch to insight mode
+        setLoadingAI(true);
+        setAiInsight('🔍 正在進行 Discovery 調研 (分析商機、產業、競品)...');
+
+        try {
+            // Import n8nApi dynamically
+            const { callN8N, createDiscoveryPayload, extractTextFromN8NResponse } = await import('../services/n8nApi');
+
+            // Create payload
+            const payload = createDiscoveryPayload(
+                {
+                    id: opportunity.id,
+                    title: opportunity.title,
+                    customer: opportunity.customer,
+                    customerId: opportunity.customerId,
+                    status: opportunity.status,
+                    statusText: opportunity.statusText,
+                    amount: opportunity.amount,
+                    probability: opportunity.probability,
+                    closeDate: opportunity.closeDate,
+                    salesRep: opportunity.salesRep
+                },
+                contacts // Pass contacts for title analysis
+            );
+
+            // Call N8N
+            const result = await callN8N(payload);
+
+            if (!result.success) {
+                setAiInsight('⚠️ ' + (result.error || 'Discovery 調研失敗'));
+                setLoadingAI(false);
+                return;
+            }
+
+            // Extract text from response
+            const insightText = extractTextFromN8NResponse(result.data);
+            setAiInsight(insightText);
+
+            // Save to NetSuite (Optional)
+            try {
+                const saveResult = await saveOodaAnalysis(
+                    opportunity.id,
+                    insightText,
+                    contacts,
+                    payload
+                );
+
+                if (saveResult.success) {
+                    setAiInsight(prev => prev + '\n\n✅ Discovery 報告已自動儲存至 NetSuite。');
+                }
+            } catch (saveErr) {
+                console.error('Save Discovery Exception', saveErr);
+            }
+
+        } catch (error) {
+            console.error('Discovery Call Error:', error);
+            setAiInsight('❌ 調研請求失敗: ' + String(error));
         } finally {
             setLoadingAI(false);
         }
@@ -261,14 +398,18 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
     const [loadingNotes, setLoadingNotes] = useState(false);
     const [notesLoaded, setNotesLoaded] = useState(false);
     const [showAddNote, setShowAddNote] = useState(false);
+
+    // New state for AI tab mode: 'insight' or 'email'
+    const [aiTabMode, setAiTabMode] = useState<'insight' | 'email'>('insight');
     const [newNoteTitle, setNewNoteTitle] = useState('');
     const [newNoteContent, setNewNoteContent] = useState('');
     const [submittingNote, setSubmittingNote] = useState(false);
 
-    // Email Composer State
-    const [showEmailComposer, setShowEmailComposer] = useState(false);
     // Keep emails state for AI context or Composer, even if empty
-    const [emails] = useState<EmailRecord[]>([]);
+    // Keep emails state for AI context or Composer, even if empty
+    const [emails, setEmails] = useState<EmailRecord[]>([]);
+    const [loadingEmails, setLoadingEmails] = useState(false);
+    const [emailsLoaded, setEmailsLoaded] = useState(false);
 
     // Task States
     const [tasks, setTasks] = useState<TaskRecord[]>([]);
@@ -368,14 +509,38 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
             }
         } finally {
             setLoadingTasks(false);
+            setLoadingTasks(false);
             setTasksLoaded(true);
+        }
+    };
+
+    const loadEmails = async () => {
+        if (loadingEmails) return;
+        setLoadingEmails(true);
+        try {
+            // Dynamically import API if needed, but it's already imported
+            const { fetchEmails } = await import('../services/api');
+            const result = await fetchEmails(opportunity.id);
+            if (result.success && result.emails) {
+                setEmails(result.emails);
+            }
+        } catch (error) {
+            console.error('Failed to load emails:', error);
+        } finally {
+            setLoadingEmails(false);
+            setEmailsLoaded(true);
         }
     };
 
     // Load data when tab changes
     useEffect(() => {
         if (activeTab === 'activity') {
-            if (activitySubTab === 'task' && !tasksLoaded && !loadingTasks) { loadTasks(); }
+            if (activitySubTab === 'all') {
+                if (!tasksLoaded && !loadingTasks) loadTasks();
+                if (!eventsLoaded && !loadingEvents) loadEvents();
+                if (!emailsLoaded && !loadingEmails) loadEmails();
+            }
+            else if (activitySubTab === 'task' && !tasksLoaded && !loadingTasks) { loadTasks(); }
             else if (activitySubTab === 'event' && !eventsLoaded && !loadingEvents) { loadEvents(); }
         } else if (activeTab === 'weekly') {
             if (!notesLoaded && !loadingNotes) { loadNotes(); }
@@ -824,6 +989,19 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                             <button
                                                 type="button"
                                                 className="ooda-ai-generate-btn"
+                                                onClick={handleDiscoveryCall}
+                                                disabled={loadingAI}
+                                                style={{
+                                                    flex: 1,
+                                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                                    color: 'white'
+                                                }}
+                                            >
+                                                🔍 Discovery Call
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="ooda-ai-generate-btn"
                                                 onClick={handleGenerateInsight}
                                                 disabled={loadingAI}
                                                 style={{ flex: 1 }}
@@ -833,26 +1011,71 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                             <button
                                                 type="button"
                                                 className="ooda-ai-generate-btn"
-                                                onClick={() => setShowEmailComposer(true)}
+                                                onClick={() => setAiTabMode('email')}
                                                 style={{
                                                     flex: 1,
-                                                    background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
-                                                    color: 'white'
+                                                    background: aiTabMode === 'email' ? '#7c3aed' : 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
+                                                    color: 'white',
+                                                    opacity: aiTabMode === 'email' ? 1 : 0.9
                                                 }}
                                             >
                                                 🤖 AI 建議郵件
                                             </button>
+                                            <button
+                                                type="button"
+                                                className="ooda-ai-generate-btn"
+                                                onClick={handleGenerateJEP}
+                                                disabled={loadingAI}
+                                                style={{
+                                                    flex: 1,
+                                                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                                    color: 'white'
+                                                }}
+                                            >
+                                                🚀 生成 JEP
+                                            </button>
                                         </div>
-                                        <div className="ooda-ai-result">
-                                            <textarea
-                                                ref={textareaRef}
-                                                className="ooda-ai-editor"
-                                                value={aiInsight}
-                                                onChange={(e) => setAiInsight(e.target.value)}
-                                                placeholder="AI 洞察結果將顯示於此..."
-                                                readOnly={loadingAI}
+
+                                        {/* Conditional Rendering: Insight Textarea or Email Composer */}
+                                        {aiTabMode === 'insight' ? (
+                                            <div className="ooda-ai-result">
+                                                <textarea
+                                                    ref={textareaRef}
+                                                    className="ooda-ai-editor"
+                                                    value={aiInsight}
+                                                    onChange={(e) => setAiInsight(e.target.value)}
+                                                    placeholder="AI 洞察結果將顯示於此..."
+                                                    readOnly={loadingAI}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <EmailComposerInline
+                                                opportunityId={opportunity.id}
+                                                opportunityTitle={opportunity.title}
+                                                opportunityStatus={opportunity.status}
+                                                opportunityAmount={opportunity.amount}
+                                                opportunityProbability={opportunity.probability}
+                                                opportunityCloseDate={opportunity.closeDate}
+                                                opportunityCustomer={opportunity.customer}
+                                                opportunityCustomerId={opportunity.customerId}
+                                                opportunitySalesRep={opportunity.salesRep}
+                                                contacts={contacts as ContactRecord[]}
+                                                buyingCenter={contacts as ContactRecord[]} // Using contacts array
+                                                weeklyNotes={weeklyNotes}
+                                                activities={{
+                                                    emails: emails,
+                                                    tasks: tasks,
+                                                    events: events
+                                                }}
+                                                scorecardData={{ ...formData, scorecardChecks }}
+                                                formData={formData}
+                                                onSuccess={() => {
+                                                    setAiInsight(prev => prev + '\n\n✅ 郵件已發送成功！');
+                                                    setAiTabMode('insight'); // Switch back after success
+                                                }}
+                                                onCancel={() => setAiTabMode('insight')}
                                             />
-                                        </div>
+                                        )}
                                     </div>
                                 )}
                                 {activeTab === 'weekly' && (
@@ -921,6 +1144,13 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                         <div className="ooda-sub-tabs">
                                             <button
                                                 type="button"
+                                                className={`ooda-sub-tab ${activitySubTab === 'all' ? 'active' : ''}`}
+                                                onClick={() => setActivitySubTab('all')}
+                                            >
+                                                📑 All
+                                            </button>
+                                            <button
+                                                type="button"
                                                 className={`ooda-sub-tab ${activitySubTab === 'task' ? 'active' : ''}`}
                                                 onClick={() => setActivitySubTab('task')}
                                             >
@@ -936,6 +1166,125 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                         </div>
 
                                         {/* Task Sub Tab */}
+
+                                        {/* All Timeline View */}
+                                        {activitySubTab === 'all' && (
+                                            <div className="ooda-timeline-view">
+                                                {/* Combine and Sort Activities */}
+                                                {(() => {
+                                                    const allActivities = [
+                                                        ...tasks.map(t => ({ ...t, type: 'task' as const, date: t.dueDate || '9999-12-31' })), // Use due date for tasks
+                                                        ...events.map(e => ({ ...e, type: 'event' as const, date: e.date || '1970-01-01' })),
+                                                        ...emails.map(e => ({ ...e, type: 'email' as const, date: e.date || '1970-01-01' }))
+                                                    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+                                                    if (allActivities.length === 0) {
+                                                        return <div className="ooda-empty">尚無任何活動記錄</div>;
+                                                    }
+
+                                                    return (
+                                                        <div className="ooda-timeline-container" style={{
+                                                            position: 'relative',
+                                                            padding: '20px 0 20px 20px',
+                                                            maxWidth: '800px',
+                                                            margin: '0 auto'
+                                                        }}>
+                                                            {/* Vertical Line */}
+                                                            <div style={{
+                                                                position: 'absolute',
+                                                                left: '29px',
+                                                                top: '20px',
+                                                                bottom: '20px',
+                                                                width: '2px',
+                                                                background: '#e5e7eb',
+                                                                zIndex: 0
+                                                            }}></div>
+
+                                                            {allActivities.map((item) => (
+                                                                <div key={`${item.type}-${item.id}`} className="ooda-timeline-item" style={{
+                                                                    display: 'flex',
+                                                                    gap: '20px',
+                                                                    marginBottom: '24px',
+                                                                    position: 'relative',
+                                                                    zIndex: 1
+                                                                }}>
+                                                                    {/* Icon */}
+                                                                    <div className={`ooda-timeline-icon ${item.type}`} style={{
+                                                                        width: '20px',
+                                                                        height: '20px',
+                                                                        borderRadius: '50%',
+                                                                        background: item.type === 'task' ? '#10b981' : item.type === 'event' ? '#3b82f6' : '#8b5cf6',
+                                                                        border: '4px solid white',
+                                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                                                        flexShrink: 0,
+                                                                        marginTop: '4px'
+                                                                    }}></div>
+
+                                                                    {/* Content Card */}
+                                                                    <div className="ooda-timeline-content" style={{
+                                                                        flex: 1,
+                                                                        background: 'white',
+                                                                        borderRadius: '8px',
+                                                                        padding: '16px',
+                                                                        border: '1px solid #e5e7eb',
+                                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                                                        transition: 'transform 0.2s, box-shadow 0.2s',
+                                                                        cursor: 'pointer'
+                                                                    }}
+                                                                        onMouseEnter={(e) => {
+                                                                            e.currentTarget.style.transform = 'translateY(-2px)';
+                                                                            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+                                                                        }}
+                                                                        onMouseLeave={(e) => {
+                                                                            e.currentTarget.style.transform = 'translateY(0)';
+                                                                            e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+                                                                        }}
+                                                                    >
+                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                                            <span style={{
+                                                                                fontSize: '12px',
+                                                                                fontWeight: 600,
+                                                                                color: item.type === 'task' ? '#059669' : item.type === 'event' ? '#2563eb' : '#7c3aed',
+                                                                                background: item.type === 'task' ? '#ecfdf5' : item.type === 'event' ? '#eff6ff' : '#f5f3ff',
+                                                                                padding: '2px 8px',
+                                                                                borderRadius: '12px'
+                                                                            }}>
+                                                                                {item.type === 'task' ? 'TASK' : item.type === 'event' ? 'EVENT' : 'EMAIL'}
+                                                                            </span>
+                                                                            <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                                                                                {item.date}
+                                                                            </span>
+                                                                        </div>
+                                                                        <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 600, color: '#111827' }}>
+                                                                            {item.type === 'email' ? (item as any).subject : item.title}
+                                                                        </h4>
+                                                                        <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#4b5563', lineHeight: '1.5' }}>
+                                                                            {item.type === 'email' ? (
+                                                                                (item as any).body?.substring(0, 100) + ((item as any).body?.length > 100 ? '...' : '')
+                                                                            ) : (
+                                                                                (item as any).message || (item as any).note || '(無內容)'
+                                                                            )}
+                                                                        </p>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#9ca3af' }}>
+                                                                            <span style={{
+                                                                                width: '24px', height: '24px', borderRadius: '50%', background: '#f3f4f6',
+                                                                                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
+                                                                            }}>
+                                                                                {(item.type === 'task' ? (item as any).assignee : item.author)?.charAt(0).toUpperCase() || 'U'}
+                                                                            </span>
+                                                                            <span>
+                                                                                {item.type === 'task' ? (item as any).assignee : item.author}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        )}
+
                                         {activitySubTab === 'task' && (
                                             <div className="ooda-sub-content">
                                                 <button
@@ -1146,40 +1495,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                 )
             }
 
-            {/* Email Composer Modal */}
-            {showEmailComposer && (
-                <EmailComposerModal
-                    opportunityId={opportunity.id}
-                    opportunityTitle={opportunity.title}
-                    opportunityStatus={opportunity.statusText}
-                    opportunityAmount={opportunity.amount}
-                    opportunityProbability={opportunity.probability}
-                    opportunityCloseDate={opportunity.closeDate}
-                    opportunityCustomer={opportunity.customer}
-                    opportunityCustomerId={opportunity.customerId}
-                    opportunitySalesRep={opportunity.salesRep}
-                    contacts={contacts.map(c => ({
-                        id: c.id,
-                        internalId: c.internalId || c.id,
-                        name: c.name,
-                        title: c.title,
-                        email: c.email || ''
-                    }))}
-                    buyingCenter={contacts}
-                    weeklyNotes={weeklyNotes}
-                    activities={{
-                        emails: emails,
-                        tasks: tasks,
-                        events: events
-                    }}
-                    scorecardData={scorecardChecks}
-                    formData={formData}
-                    onClose={() => setShowEmailComposer(false)}
-                    onSuccess={() => {
-                        // Email sent
-                    }}
-                />
-            )}
+
         </DndContext >
     );
 }

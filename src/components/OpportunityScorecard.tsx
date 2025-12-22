@@ -102,7 +102,7 @@ export function OpportunityScorecard({ opportunityId: _opportunityId, initialChe
                 baseProb: '75%',
                 description: '決策定案',
                 items: [
-                    { id: 'b1', text: '就合同進行談判', checked: false, weight: 15 },
+                    { id: 'b1', text: '就合約進行談判', checked: false, weight: 15 },
                 ],
                 rowSpan: 1
             },
@@ -272,7 +272,7 @@ export function OpportunityScorecard({ opportunityId: _opportunityId, initialChe
                 .ooda-score-table th {
                     background: #f8fafc;
                     padding: 8px;
-                    text-align: left;
+                    text-align: center;
                     border-bottom: 2px solid #e2e8f0;
                     color: #64748b;
                     font-weight: 600;
