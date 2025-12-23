@@ -1110,7 +1110,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        {analysisData[aiActiveType as keyof typeof analysisData] ? (
+                                                        {analysisData[aiActiveType as keyof typeof analysisData] && !analysisData[aiActiveType as keyof typeof analysisData].includes('正在載入') ? (
                                                             <div className="ooda-ai-markdown-content">
                                                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                                                     {analysisData[aiActiveType as keyof typeof analysisData]}
@@ -1134,7 +1134,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                                     else if (aiActiveType === 'jep') handleGenerateJEP();
                                                                 }}
                                                             >
-                                                                {analysisData[aiActiveType as keyof typeof analysisData] ? '重新生成' : '開始生成'}
+                                                                {analysisData[aiActiveType as keyof typeof analysisData] && !analysisData[aiActiveType as keyof typeof analysisData].includes('正在載入') ? '重新生成' : '開始生成'}
                                                             </button>
                                                         </div>
                                                     </>
