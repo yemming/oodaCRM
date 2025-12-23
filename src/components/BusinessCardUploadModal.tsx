@@ -450,12 +450,7 @@ export const BusinessCardUploadModal = ({ onClose, isStandalone = false }: Busin
                                             <div style={{ color: '#9ca3af' }}>No Image</div>
                                         )}
                                     </div>
-                                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                                        <button type="button" style={styles.cancelBtn} onClick={() => {
-                                            setResult(null);
-                                            setError(null);
-                                        }}>重新上傳</button>
-                                    </div>
+
                                 </div>
 
                                 {/* Right Column: Form */}

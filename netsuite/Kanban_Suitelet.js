@@ -1220,8 +1220,11 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                 log.debug('Reverse Mapping', JSON.stringify(STATUS_ID_TO_KEY));
 
                 // Load HTML file
+                // <!-- START HTML LOAD -->
+                // Load HTML file (Legacy method - will be replaced by build script)
                 const htmlFile = file.load({ id: HTML_FILE_ID });
                 let htmlContent = htmlFile.getContents();
+                // <!-- END HTML LOAD -->
 
                 // Fetch real data
                 const opportunities = getOpportunities();

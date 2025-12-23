@@ -19,8 +19,11 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/log', 'N/url'],
 
                 try {
                     // Load HTML file
+                    // <!-- START HTML LOAD -->
+                    // Load HTML file (Legacy method - will be replaced by build script)
                     const htmlFile = file.load({ id: HTML_FILE_ID });
                     let htmlContent = htmlFile.getContents();
+                    // <!-- END HTML LOAD -->
 
                     const currentUser = runtime.getCurrentUser();
 
