@@ -916,7 +916,15 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                     {/* Header */}
                     <div className="ooda-header">
                         <div className="ooda-header-left">
-                            <h1 className="ooda-title">{opportunity.title}</h1>
+                            <a
+                                href={`/app/accounting/transactions/opprtnty.nl?id=${opportunity.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ooda-title-link"
+                                title="Open in NetSuite"
+                            >
+                                <h1 className="ooda-title">{opportunity.title}</h1>
+                            </a>
                             <div className="ooda-meta">
                                 <span className="ooda-id">OPP-{opportunity.tranId || opportunity.id}</span>
                                 <span className="ooda-status-badge">{opportunity.statusText}</span>

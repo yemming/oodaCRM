@@ -1206,10 +1206,11 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
             n8nAiUrl: '${n8nAiUrl}',
             n8nKey: '${n8nKey}'
           };
-          window.NETSUITE_DATA = {
+            window.NETSUITE_DATA = {
             opportunities: ${JSON.stringify(opportunities)},
             statusMapping: ${JSON.stringify(STATUS_MAPPING)},
-            allStatuses: ${JSON.stringify(allStatuses)}
+            allStatuses: ${JSON.stringify(allStatuses)},
+            salesReps: ${JSON.stringify(getSalesReps())}
           };
           console.log('📋 Available Statuses:', window.NETSUITE_DATA.allStatuses);
           console.log('🔗 Status Mapping:', window.NETSUITE_DATA.statusMapping);
@@ -1221,12 +1222,46 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                 htmlContent = htmlContent.replace('<head>', '<head>' + dataScript);
 
                 // Add as inline HTML field
+                // Add as inline HTML field
                 const field = form.addField({
                     id: 'custpage_react_root',
                     type: serverWidget.FieldType.INLINEHTML,
-                    label: 'React App',
+                    label: ' ', // Empty label
                 });
-                field.defaultValue = htmlContent;
+
+                // Aggressive CSS Reset for NetSuite UI to allow full-screen React App
+                field.defaultValue = `
+                    <style>
+                        /* 1. Hide NetSuite Page Title and Toolbar */
+                        .uir-page-title-row, .uir-page-title, .uir-global-message { display: none !important; }
+                        
+                        /* 2. Remove default body padding and margins */
+                        .uir-page-body, body, #body, form[name="main_form"] { 
+                            padding: 0 !important; 
+                            margin: 0 !important; 
+                            width: 100% !important;
+                        }
+
+                        /* 3. Force the main field table to be full width/height */
+                        .uir-outside-fields-table, .uir-fields-table, .uir-list-form-table {
+                            width: 100% !important;
+                            padding: 0 !important;
+                            border: none !important;
+                        }
+
+                        /* 4. Hide the specific label row for the inline HTML field if it appears */
+                        .uir-label-row { display: none !important; }
+                        
+                        /* 5. Ensure the cell containing our app is tight */
+                        td.uir-page-body-td { padding: 0 !important; }
+                        
+                        /* 6. Hide footer if possible/desired */
+                        .uir-page-footer { display: none !important; }
+
+                        /* 7. Fix potential overflow */
+                        body { overflow-x: hidden; }
+                    </style>
+                ` + htmlContent;
 
             } catch (e) {
                 log.error('UI Error', e.message);
