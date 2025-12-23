@@ -14,7 +14,7 @@ define(['N/ui/serverWidget', 'N/record', 'N/search', 'N/log'],
         const FIELD_VALUE = 'custrecord_ooda_config_value';
 
         const KEY_AI_INSIGHT = 'n8n_url'; // Using standard key name for main N8N URL
-
+        const KEY_N8N_AUTH = 'n8n_key';
         const KEY_OCR_FOLDER = 'ocr_folder_id';
 
         /**
@@ -41,10 +41,13 @@ define(['N/ui/serverWidget', 'N/record', 'N/search', 'N/log'],
             search.create({
                 type: CONFIG_RECORD_TYPE,
                 filters: [[FIELD_KEY, 'is', key]],
+                sorts: [{ name: 'internalid', sort: search.Sort.DESC }] // MATCH READ LOGIC: Get latest config
             }).run().each(result => {
                 internalId = result.id;
                 return false;
             });
+
+            log.debug('saveConfigValue', `Key: ${key}, Found Existing ID: ${internalId || 'None (Creating New)'}`);
 
             let rec;
             if (internalId) {
@@ -73,7 +76,18 @@ define(['N/ui/serverWidget', 'N/record', 'N/search', 'N/log'],
                     container: 'group_n8n'
                 });
                 urlField.isMandatory = true;
+                urlField.isMandatory = true;
                 urlField.defaultValue = getConfigValue(KEY_AI_INSIGHT);
+
+                const keyField = form.addField({
+                    id: 'custpage_n8n_key',
+                    type: serverWidget.FieldType.TEXT, // Or PASSWORD if we want to mask it, but TEXT is easier to debug for now
+                    label: 'N8N Header Auth Key',
+                    container: 'group_n8n'
+                });
+                keyField.isMandatory = false;
+                keyField.defaultValue = getConfigValue(KEY_N8N_AUTH);
+                keyField.setHelpText({ help: 'The value for the "n8nkey" header in N8N Header Auth.' });
 
                 const folderField = form.addField({
                     id: 'custpage_ocr_folder',
@@ -91,9 +105,11 @@ define(['N/ui/serverWidget', 'N/record', 'N/search', 'N/log'],
 
             } else { // POST
                 const n8nUrl = request.parameters.custpage_n8n_url;
+                const n8nKey = request.parameters.custpage_n8n_key;
                 const folderId = request.parameters.custpage_ocr_folder;
 
                 saveConfigValue(KEY_AI_INSIGHT, n8nUrl);
+                saveConfigValue(KEY_N8N_AUTH, n8nKey);
                 saveConfigValue(KEY_OCR_FOLDER, folderId);
 
                 const form = serverWidget.createForm({ title: 'OODA CRM Settings' });
@@ -113,6 +129,14 @@ define(['N/ui/serverWidget', 'N/record', 'N/search', 'N/log'],
                     container: 'group_n8n'
                 });
                 urlField.defaultValue = n8nUrl;
+
+                const keyField = form.addField({
+                    id: 'custpage_n8n_key',
+                    type: serverWidget.FieldType.TEXT,
+                    label: 'N8N Header Auth Key',
+                    container: 'group_n8n'
+                });
+                keyField.defaultValue = n8nKey;
 
                 const folderField = form.addField({
                     id: 'custpage_ocr_folder',

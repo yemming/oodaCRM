@@ -75,7 +75,7 @@ export interface EmailTemplatePayload extends N8NBasePayload {
         events?: any[];
     };
     scorecardData?: any;            // 機會評分表
-    formData?: any;                 // 表單資料（部門、地點、預計成案日等）
+    observation?: string;           // BANT/Observation details
 }
 
 /**
@@ -89,6 +89,13 @@ export interface PainAnalysisPayload extends N8NBasePayload {
 }
 
 // Union type moved to bottom of file
+
+/**
+ * Get N8N Key from NetSuite context
+ */
+const getN8nKey = (): string | null => {
+    return (window as any).NETSUITE_CONTEXT?.n8nKey || null;
+};
 
 /**
  * Get N8N URL from NetSuite context
@@ -110,6 +117,7 @@ export const callN8N = async <T = any>(payload: N8NPayload): Promise<{
     error?: string;
 }> => {
     const n8nUrl = getN8NUrl();
+    const n8nKey = getN8nKey();
 
     if (!n8nUrl) {
         return {
@@ -121,9 +129,19 @@ export const callN8N = async <T = any>(payload: N8NPayload): Promise<{
     try {
         console.log(`📡 Calling N8N [${payload.requestType}]`, payload);
 
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json'
+        };
+
+        if (n8nKey) {
+            headers['n8nkey'] = n8nKey;
+        } else {
+            console.warn('⚠️ N8N Key is missing from context. Header Auth might fail.');
+        }
+
         const response = await fetch(n8nUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify(payload)
         });
 
@@ -201,39 +219,32 @@ export const createDiscoveryPayload = (
  * Includes full opportunity data for AI to generate personalized emails
  */
 export const createEmailTemplatePayload = (
-    opportunity: OpportunityContext,
-    recipient: {
-        name: string;
-        email: string;
-        title?: string;
-    },
-    purpose?: EmailTemplatePayload['emailPurpose'],
-    fullData?: {
-        buyingCenter?: any[];
-        weeklyNotes?: any[];
-        activities?: {
-            emails?: any[];
-            phoneCalls?: any[];
-            tasks?: any[];
-            events?: any[];
-        };
-        scorecardData?: any;
-        formData?: any;
+    opportunityContext: OpportunityContext,
+    recipient: { name: string; email: string; title?: string },
+    purpose: EmailTemplatePayload['emailPurpose'] = 'follow_up',
+    data: {
+        buyingCenter: any[];
+        weeklyNotes: any[];
+        activities: any;
+        scorecardData: any;
+        observation?: string;
     }
-): EmailTemplatePayload => ({
-    requestType: 'email_template',
-    opportunityContext: opportunity,
-    timestamp: new Date().toISOString(),
-    recipientName: recipient.name,
-    recipientEmail: recipient.email,
-    recipientTitle: recipient.title,
-    emailPurpose: purpose || 'follow_up',
-    buyingCenter: fullData?.buyingCenter,
-    weeklyNotes: fullData?.weeklyNotes,
-    activities: fullData?.activities,
-    scorecardData: fullData?.scorecardData,
-    formData: fullData?.formData
-});
+): EmailTemplatePayload => {
+    return {
+        requestType: 'email_template',
+        opportunityContext,
+        timestamp: new Date().toISOString(),
+        recipientName: recipient.name,
+        recipientEmail: recipient.email,
+        recipientTitle: recipient.title,
+        emailPurpose: purpose,
+        buyingCenter: data.buyingCenter,
+        weeklyNotes: data.weeklyNotes,
+        activities: data.activities,
+        scorecardData: data.scorecardData,
+        observation: data.observation
+    };
+};
 
 /**
  * Helper: Create Pain Analysis payload

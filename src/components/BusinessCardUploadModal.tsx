@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { uploadBusinessCard, type OCRResult } from '../services/ocrService';
 
 // Simple logger
@@ -139,6 +139,31 @@ export const BusinessCardUploadModal = ({ onClose, isStandalone = false }: Busin
     const [result, setResult] = useState<OCRResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Jokes state for loading
+    const [currentJokeIndex, setCurrentJokeIndex] = useState(0);
+    const jokes = [
+        "正在用力看這張名片...字有點小... 🧐",
+        "為什麼業務員喜歡雨天？\n因為客戶都在家。 ☔️",
+        "正在將紙本名片轉化為數位商機... 🔄",
+        "別擔心，AI 不會搶走您的工作，但會用 AI 的人可能會喔！ 🤖",
+        "CRM 系統就像健身房會員卡，買了不代表你會變壯，你得去用它！ 💪",
+        "成功的業務員從不等待機會，而是創造機會！ ✨"
+    ];
+
+    // Cycle jokes when loading
+    useEffect(() => {
+        let interval: any;
+        if (isAnalyzing) {
+            setCurrentJokeIndex(0);
+            interval = setInterval(() => {
+                setCurrentJokeIndex(prev => (prev + 1) % jokes.length);
+            }, 3000);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isAnalyzing]);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -385,7 +410,14 @@ export const BusinessCardUploadModal = ({ onClose, isStandalone = false }: Busin
                                         cursor: (!file || isAnalyzing) ? 'not-allowed' : 'pointer'
                                     }}
                                 >
-                                    {isAnalyzing ? '正在分析名片...' : '開始辨識'}
+                                    {isAnalyzing ? (
+                                        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <span>正在分析名片...</span>
+                                            <span style={{ fontSize: '11px', fontWeight: 'normal', marginTop: '4px', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>
+                                                {jokes[currentJokeIndex]}
+                                            </span>
+                                        </span>
+                                    ) : '開始辨識'}
                                 </button>
                             </div>
                         </>
@@ -482,7 +514,14 @@ export const BusinessCardUploadModal = ({ onClose, isStandalone = false }: Busin
                             onClick={handleCreateRecords}
                             disabled={isAnalyzing}
                         >
-                            {isAnalyzing ? '處理中...' : '建立客戶與聯絡人'}
+                            {isAnalyzing ? (
+                                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                    <span>處理中...</span>
+                                    <span style={{ fontSize: '11px', fontWeight: 'normal', marginTop: '4px', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>
+                                        {jokes[currentJokeIndex]}
+                                    </span>
+                                </span>
+                            ) : '建立客戶與聯絡人'}
                         </button>
                     )}
                 </div>

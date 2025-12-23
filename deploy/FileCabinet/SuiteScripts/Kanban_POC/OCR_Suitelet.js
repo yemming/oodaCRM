@@ -17,6 +17,7 @@ define(['N/https', 'N/search', 'N/log', 'N/runtime', 'N/record', 'N/file'],
         const FIELD_VALUE = 'custrecord_ooda_config_value';
         const KEY_N8N_URL = 'n8n_url';
         const KEY_OCR_FOLDER = 'ocr_folder_id';
+        const KEY_N8N_AUTH = 'n8n_key';
 
         // Folder to store Business Cards. 
         const TARGET_FOLDER_NAME = 'OODA Business Cards';
@@ -112,6 +113,8 @@ define(['N/https', 'N/search', 'N/log', 'N/runtime', 'N/record', 'N/file'],
             if (!fileContent) throw new Error('No file content provided');
 
             const n8nUrl = getConfigValue(KEY_N8N_URL);
+            log.debug('OCR Config Check', `Using N8N URL: ${n8nUrl}`);
+            const n8nKey = getConfigValue(KEY_N8N_AUTH);
             if (!n8nUrl) throw new Error('N8N Webhook URL not configured.');
 
             log.debug('Sending to N8N', `URL: ${n8nUrl}, File: ${fileName}`);
@@ -123,9 +126,19 @@ define(['N/https', 'N/search', 'N/log', 'N/runtime', 'N/record', 'N/file'],
                 data: fileContent
             };
 
+            const cleanKey = (n8nKey || '').trim();
+            const headers = {
+                'Content-Type': 'application/json',
+                'n8nkey': cleanKey
+            };
+            log.debug('N8N Request Headers', JSON.stringify({
+                ...headers,
+                'n8nkey': cleanKey ? `${cleanKey.substring(0, 4)}...***` : 'MISSING'
+            }));
+
             const n8nResponse = https.post({
                 url: n8nUrl,
-                headers: { 'Content-Type': 'application/json' },
+                headers: headers,
                 body: JSON.stringify(n8nPayload)
             });
 

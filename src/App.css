@@ -183,10 +183,10 @@
   background: var(--color-danger);
 }
 
-/* Main Content - 2 Columns (50:50) */
+/* Main Content - 2 Columns (60:40) */
 .ooda-main {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 6fr 4fr;
   gap: 0;
   flex: 1;
   overflow: hidden;
@@ -755,28 +755,46 @@
 
 .ooda-ai-actions {
   display: flex;
-  justify-content: flex-end;
+  gap: 4px;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 8px;
+  margin-bottom: 12px;
 }
 
 .ooda-ai-generate-btn {
-  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 0.75rem;
   font-weight: 500;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
   cursor: pointer;
+  color: #64748b;
   transition: all 0.2s;
   display: flex;
   align-items: center;
-  gap: 8px;
-  box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2);
+  justify-content: center;
+  gap: 6px;
 }
 
-.ooda-ai-generate-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(139, 92, 246, 0.3);
+.ooda-ai-generate-btn:hover:not(.active):not(:disabled) {
+  color: #1e293b;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.ooda-ai-generate-btn.active {
+  background: white;
+  color: #336179;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+}
+
+.ooda-ai-icon {
+  color: #b45309;
+  /* Deep Amber / Gold */
+  margin-right: 4px;
 }
 
 .ooda-ai-generate-btn:disabled {

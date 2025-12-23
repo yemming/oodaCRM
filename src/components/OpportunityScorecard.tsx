@@ -197,9 +197,9 @@ export function OpportunityScorecard({ opportunityId: _opportunityId, initialChe
 
     return (
         <div className="ooda-scorecard">
-            <h3 className="ooda-subsection-title">
+            <h2 className="ooda-section-title">
                 機會評分表 (目前分數: <span style={{ color: '#2563eb' }}>{totalScore}%</span>)
-            </h3>
+            </h2>
 
             <table className="ooda-score-table">
                 <thead>
@@ -269,7 +269,7 @@ export function OpportunityScorecard({ opportunityId: _opportunityId, initialChe
                 .ooda-score-table {
                     width: 100%;
                     border-collapse: collapse;
-                    font-size: 13px;
+                    font-size: 12px;
                 }
                 .ooda-score-table th {
                     background: #f8fafc;
@@ -308,10 +308,10 @@ export function OpportunityScorecard({ opportunityId: _opportunityId, initialChe
                     font-weight: 500;
                 }
                 .checkbox-text {
-                    color: #1e293b;
+                    color: #000000;
                     line-height: 1.4;
-                    font-size: 1.05rem;
-                    font-weight: 600;
+                    font-size: 12px;
+                    font-weight: 500;
                 }
             `}</style>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ContactRecord, SendEmailParams } from '../services/api';
 import { sendEmail } from '../services/api';
 
@@ -23,7 +23,6 @@ interface EmailComposerModalProps {
         events?: any[];
     };
     scorecardData?: any;
-    formData?: any;
     onClose: () => void;
     onSuccess: () => void;
 }
@@ -195,7 +194,6 @@ const EmailComposerModal = ({
     weeklyNotes = [],
     activities = {},
     scorecardData = {},
-    formData = {},
     onClose,
     onSuccess
 }: EmailComposerModalProps) => {
@@ -207,6 +205,30 @@ const EmailComposerModal = ({
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
     const [error, setError] = useState<string>('');
     const [aiSuccess, setAiSuccess] = useState<boolean>(false);
+
+    // Jokes state for loading
+    const [currentJokeIndex, setCurrentJokeIndex] = useState(0);
+    const jokes = [
+        "為什麼業務員喜歡雨天？\n因為客戶都在家。",
+        "正在替您準備絕佳的郵件內容...",
+        "別擔心，AI 不會搶走您的工作，但會用 AI 的人可能會喔！",
+        "CRM 系統就像健身房會員卡，買了不代表你會變壯，你得去用它！",
+        "成功的業務員從不等待機會，而是創造機會（和好郵件）！"
+    ];
+
+    // Cycle jokes when loading
+    useEffect(() => {
+        let interval: any;
+        if (isGenerating) {
+            setCurrentJokeIndex(0);
+            interval = setInterval(() => {
+                setCurrentJokeIndex(prev => (prev + 1) % jokes.length);
+            }, 3000);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isGenerating, jokes.length]);
 
     // Get the selected contact's email and name
     const selectedContact = contacts.find(c => c.id === selectedContactId);
@@ -252,8 +274,7 @@ const EmailComposerModal = ({
                     buyingCenter: buyingCenter,
                     weeklyNotes: weeklyNotes,
                     activities: activities,
-                    scorecardData: scorecardData,
-                    formData: formData
+                    scorecardData: scorecardData
                 }
             );
 
@@ -261,24 +282,7 @@ const EmailComposerModal = ({
             const result = await callN8N(payload);
 
             if (!result.success || !result.data) {
-                // Use a default template if N8N failed
-                const contactName = recipientName || '客戶';
-                setSubject(`關於 ${opportunityTitle || '商機'} 的進度更新`);
-                setBody(`${contactName} 您好，
-
-感謝您對於 ${opportunityTitle || '此案件'} 的關注與支持。
-
-我想向您更新目前的進度狀況：
-
-• 目前專案狀態：${opportunityStatus || '進行中'}
-• 預估金額：$${opportunityAmount?.toLocaleString() || '待確認'}
-
-如有任何問題或需要進一步討論，請隨時與我聯繫。
-
-期待您的回覆！
-
-Best regards`);
-                setAiSuccess(true);
+                setError(result.error || 'AI 生成失敗，未返回數據');
                 setIsGenerating(false);
                 return;
             }
@@ -325,8 +329,8 @@ Best regards`);
         try {
             const params: SendEmailParams = {
                 opportunityId,
-                recipientContactId: selectedContactId || undefined,
-                recipientEmail,
+                recipientContactIds: selectedContactId ? [selectedContactId] : undefined,
+                recipientEmails: recipientEmail ? [recipientEmail] : [],
                 emailSubject: subject,
                 emailBody: body
             };
@@ -445,15 +449,62 @@ Best regards`);
                     </div>
 
                     {/* Body */}
-                    <div>
+                    <div style={{ position: 'relative' }}>
                         <label style={styles.label}>內容</label>
-                        <textarea
-                            value={body}
-                            onChange={(e) => setBody(e.target.value)}
-                            placeholder="輸入郵件內容（或點擊上方按鈕讓 AI 生成）..."
-                            style={styles.textarea}
-                            rows={10}
-                        />
+                        <div style={{ position: 'relative' }}>
+                            <textarea
+                                value={body}
+                                onChange={(e) => setBody(e.target.value)}
+                                placeholder="輸入郵件內容（或點擊上方按鈕讓 AI 生成）..."
+                                style={{
+                                    ...styles.textarea,
+                                    opacity: isGenerating ? 0.3 : 1, // Dim the text area
+                                    transition: 'opacity 0.3s ease'
+                                }}
+                                rows={10}
+                                disabled={isGenerating}
+                            />
+
+                            {/* Loading Overlay with Jokes */}
+                            {isGenerating && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    zIndex: 10,
+                                    pointerEvents: 'none' // Click-through
+                                }}>
+                                    <div style={{
+                                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                        padding: '20px',
+                                        borderRadius: '12px',
+                                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                                        textAlign: 'center',
+                                        maxWidth: '80%'
+                                    }}>
+                                        <div style={{ fontSize: '24px', marginBottom: '12px' }}>🤖 💭</div>
+                                        <div style={{
+                                            fontSize: '15px',
+                                            fontWeight: 600,
+                                            color: '#4b5563',
+                                            minHeight: '45px', // Reserve space for 2 lines
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            whiteSpace: 'pre-line'
+                                        }}>
+                                            {jokes[currentJokeIndex]}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 

@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ContactRecord, SendEmailParams } from '../services/api';
 import { sendEmail } from '../services/api';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface EmailComposerInlineProps {
     opportunityId: string;
@@ -24,8 +26,8 @@ interface EmailComposerInlineProps {
     };
     scorecardData?: any;
     formData?: any;
+    observation?: string; // BANT/Observation details
     onSuccess: () => void;
-    onCancel: () => void;
 }
 
 // Inline styles
@@ -101,47 +103,63 @@ const styles = {
     },
     generateBtn: {
         width: '100%',
-        padding: '10px',
-        background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
-        color: 'white',
-        border: 'none',
-        borderRadius: '6px',
+        padding: '12px',
+        backgroundColor: '#f8fafc',
+        color: '#336179',
+        border: '1px solid #e2e8f0',
+        borderRadius: '8px',
         fontSize: '14px',
-        fontWeight: 500,
+        fontWeight: 600,
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '6px'
+        gap: '6px',
+        transition: 'all 0.2s',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
     },
     actions: {
         display: 'flex',
-        justifyContent: 'flex-end',
-        gap: '10px',
-        paddingTop: '12px',
+        justifyContent: 'center',
+        gap: '12px',
+        paddingTop: '16px',
         borderTop: '1px solid #f1f5f9'
     },
     sendBtn: {
-        padding: '8px 16px',
-        background: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)',
+        width: '100%',
+        padding: '12px',
+        backgroundColor: '#336179',
         color: 'white',
         border: 'none',
-        borderRadius: '6px',
+        borderRadius: '8px',
         fontSize: '14px',
-        fontWeight: 500,
+        fontWeight: 600,
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
-        gap: '6px'
+        justifyContent: 'center',
+        gap: '8px',
+        boxShadow: '0 2px 4px rgba(51, 97, 121, 0.2)'
     },
-    cancelBtn: {
-        padding: '8px 16px',
-        backgroundColor: 'white',
-        color: '#64748b',
+    checkboxList: {
+        display: 'flex',
+        flexDirection: 'column' as const,
+        gap: '8px',
+        maxHeight: '150px',
+        overflowY: 'auto' as const,
+        padding: '8px',
         border: '1px solid #cbd5e1',
         borderRadius: '6px',
+        backgroundColor: '#f8fafc'
+    },
+    checkboxItem: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
         fontSize: '14px',
-        cursor: 'pointer'
+        color: '#1e293b',
+        cursor: 'pointer',
+        padding: '4px 0'
     }
 };
 
@@ -163,35 +181,61 @@ export const EmailComposerInline = ({
     weeklyNotes = [],
     activities = {},
     scorecardData = {},
-    formData = {},
-    onSuccess,
-    onCancel
+    observation = '',
+    onSuccess
 }: EmailComposerInlineProps) => {
-    const [selectedContactId, setSelectedContactId] = useState<string>('');
+    const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
     const [customEmail, setCustomEmail] = useState<string>('');
     const [subject, setSubject] = useState<string>('');
     const [body, setBody] = useState<string>('');
     const [isSending, setIsSending] = useState<boolean>(false);
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
     const [error, setError] = useState<string>('');
-    const [aiSuccess, setAiSuccess] = useState<boolean>(false);
 
-    // Get the selected contact's email and name
-    const selectedContact = contacts.find(c => c.id === selectedContactId);
-    const recipientEmail = selectedContact?.email || customEmail;
-    const recipientName = selectedContact?.name || '';
-    const recipientTitle = selectedContact?.title || '';
+    // View Mode: 'compose' | 'preview'
+    const [viewMode, setViewMode] = useState<'compose' | 'preview'>('compose');
+    const [previewContent, setPreviewContent] = useState<string>('');
+
+    // Jokes state for loading
+    const [currentJokeIndex, setCurrentJokeIndex] = useState(0);
+    const jokes = [
+        "為什麼業務員喜歡雨天？\n因為客戶都在家。",
+        "正在替您準備絕佳的郵件內容...",
+        "別擔心，AI 不會搶走您的工作，但會用 AI 的人可能會喔！",
+        "CRM 系統就像健身房會員卡，買了不代表你會變壯，你得去用它！",
+        "成功的業務員從不等待機會，而是創造機會（和好郵件）！"
+    ];
+
+    // Cycle jokes when loading
+    useEffect(() => {
+        let interval: any;
+        if (isGenerating) {
+            setCurrentJokeIndex(0);
+            interval = setInterval(() => {
+                setCurrentJokeIndex(prev => (prev + 1) % jokes.length);
+            }, 3000);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isGenerating]);
+
+    // Get selected contacts
+    const selectedContacts = contacts.filter(c => selectedContactIds.includes(c.id));
+    const recipientEmails = selectedContacts.map(c => c.email!).filter(Boolean);
+    if (customEmail) recipientEmails.push(customEmail);
+
+    const hasSelection = recipientEmails.length > 0;
 
     // Generate AI Email Suggestion
     const handleGenerateAI = async () => {
-        if (!selectedContactId && !customEmail) {
+        if (selectedContactIds.length === 0 && !customEmail) {
             setError('請先選擇收件人');
             return;
         }
 
         setIsGenerating(true);
         setError('');
-        setAiSuccess(false);
 
         try {
             // Import n8nApi dynamically
@@ -211,9 +255,9 @@ export const EmailComposerInline = ({
                     salesRep: opportunitySalesRep
                 },
                 {
-                    name: recipientName || '客戶',
-                    email: recipientEmail,
-                    title: recipientTitle
+                    name: selectedContacts.length === 1 ? selectedContacts[0].name : (selectedContacts.length > 1 ? '各位夥伴' : '客戶'),
+                    email: recipientEmails.join(', '),
+                    title: selectedContacts.length === 1 ? selectedContacts[0].title : ''
                 },
                 'follow_up',
                 {
@@ -221,7 +265,7 @@ export const EmailComposerInline = ({
                     weeklyNotes: weeklyNotes,
                     activities: activities,
                     scorecardData: scorecardData,
-                    formData: formData
+                    observation: observation
                 }
             );
 
@@ -229,33 +273,16 @@ export const EmailComposerInline = ({
             const result = await callN8N(payload);
 
             if (!result.success || !result.data) {
-                // Use a default template if N8N failed
-                const contactName = recipientName || '客戶';
-                setSubject(`關於 ${opportunityTitle || '商機'} 的進度更新`);
-                setBody(`${contactName} 您好，\n\n感謝您對於 ${opportunityTitle || '此案件'} 的關注與支持。\n\n我想向您更新目前的進度狀況：\n\n• 目前專案狀態：${opportunityStatus || '進行中'}\n• 預估金額：$${opportunityAmount?.toLocaleString() || '待確認'}\n\n如有任何問題或需要進一步討論，請隨時與我聯繫。\n\nBest regards`);
-                setAiSuccess(true);
+                setError(result.error || 'AI 生成失敗，未返回數據');
                 setIsGenerating(false);
                 return;
             }
 
             // Extract text from N8N response
             const aiText = extractTextFromN8NResponse(result.data);
+            setPreviewContent(aiText);
+            setViewMode('preview');
 
-            // Parse subject and body
-            const lines = aiText.split('\n');
-            const subjectLine = lines.find((l: string) => l.toLowerCase().startsWith('subject:') || l.toLowerCase().startsWith('主旨:'));
-            if (subjectLine) {
-                setSubject(subjectLine.replace(/^(subject:|主旨:)/i, '').trim());
-                setBody(lines.filter((l: string) => l !== subjectLine).join('\n').trim());
-            } else if (typeof result.data === 'object' && result.data.subject && result.data.body) {
-                setSubject(result.data.subject);
-                setBody(result.data.body);
-            } else {
-                setBody(aiText);
-                setSubject(`關於 ${opportunityTitle || '商機'} 的跟進`);
-            }
-
-            setAiSuccess(true);
         } catch (e) {
             console.error('AI Generation Error:', e);
             setError('AI 生成失敗: ' + String(e));
@@ -264,13 +291,41 @@ export const EmailComposerInline = ({
         }
     };
 
-    const handleSend = async () => {
-        if (!recipientEmail) {
-            setError('請選擇收件人或輸入 Email 地址');
-            return;
+    // Helper to switch to Edit Mode (strip parsing logic if needed, or parse here)
+    const handleUseDraft = () => {
+        const text = previewContent;
+        const lines = text.split('\n');
+
+        let foundSubject = '';
+        let foundBody = '';
+
+        const subjectLine = lines.find((l: string) => l.toLowerCase().startsWith('subject:') || l.toLowerCase().startsWith('主旨:'));
+
+        if (subjectLine) {
+            foundSubject = subjectLine.replace(/^(subject:|主旨:)/i, '').trim();
+            // Remove subject line and join relevant body parts
+            // Also simplistic markdown check - can strip more if needed
+            foundBody = lines.filter((l: string) => l !== subjectLine).join('\n').trim();
+        } else {
+            // Try to parse headers if AI returns subject as key
+            // For now, assume entire text is body if no subject line
+            foundSubject = `關於 ${opportunityTitle || '商機'} 的跟進`;
+            foundBody = text;
         }
-        if (!subject.trim()) {
-            setError('請輸入郵件主旨');
+
+        // Simple stripping of bold markers for plain text usage if desired, 
+        // though user might want to keep some formatting if their email client supports it.
+        // Let's keep it minimal: remove bold ** but keep list *
+        foundBody = foundBody.replace(/\*\*(.*?)\*\*/g, '$1');
+
+        setSubject(foundSubject);
+        setBody(foundBody);
+        setViewMode('compose');
+    };
+
+    const handleSend = async () => {
+        if (!hasSelection) {
+            setError('請選擇收件人或輸入 Email 地址');
             return;
         }
 
@@ -280,8 +335,8 @@ export const EmailComposerInline = ({
         try {
             const params: SendEmailParams = {
                 opportunityId,
-                recipientContactId: selectedContactId || undefined,
-                recipientEmail,
+                recipientContactIds: selectedContactIds.length > 0 ? selectedContactIds : undefined,
+                recipientEmails: recipientEmails,
                 emailSubject: subject,
                 emailBody: body
             };
@@ -307,106 +362,184 @@ export const EmailComposerInline = ({
         <div style={styles.container}>
             {/* Header */}
             <div style={styles.header}>
-                <span style={{ fontSize: '20px' }}>🤖</span>
-                <span>AI 建議郵件撰寫</span>
+                <span>建議郵件撰寫</span>
+            </div>
+
+
+
+            {/* Recipient */}
+            <div style={styles.inputGroup}>
+                <label style={styles.label}>收件人 (多選)</label>
+                {contactsWithEmail.length > 0 && (
+                    <div style={styles.checkboxList}>
+                        {contactsWithEmail.map(contact => (
+                            <label key={contact.id} style={styles.checkboxItem}>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedContactIds.includes(contact.id)}
+                                    onChange={(e) => {
+                                        if (e.target.checked) {
+                                            setSelectedContactIds(prev => [...prev, contact.id]);
+                                        } else {
+                                            setSelectedContactIds(prev => prev.filter(id => id !== contact.id));
+                                        }
+                                    }}
+                                />
+                                <span>{contact.name} {contact.title ? `(${contact.title})` : ''}</span>
+                            </label>
+                        ))}
+                    </div>
+                )}
+                <input
+                    type="email"
+                    value={customEmail}
+                    onChange={(e) => setCustomEmail(e.target.value)}
+                    placeholder="或手動輸入補發 Email 地址"
+                    style={styles.input}
+                />
             </div>
 
             {/* Error */}
             {error && <div style={styles.error}>{error}</div>}
 
-            {/* Success */}
-            {aiSuccess && (
-                <div style={styles.success}>
-                    ✅ AI 已生成建議內容，您可以編輯後發送！
+            {/* AI Generate Button (Only show in compose mode if not previewing) */}
+            {viewMode === 'compose' && (
+                <button
+                    onClick={handleGenerateAI}
+                    disabled={isGenerating || !hasSelection}
+                    style={{
+                        ...styles.generateBtn,
+                        opacity: (isGenerating || !hasSelection) ? 0.6 : 1,
+                        cursor: (isGenerating || !hasSelection) ? 'not-allowed' : 'pointer'
+                    }}
+                >
+                    {isGenerating ? (
+                        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span>生成建議中...</span>
+                            <span style={{ fontSize: '11px', fontWeight: 'normal', marginTop: '4px', fontStyle: 'italic' }}>
+                                {jokes[currentJokeIndex]}
+                            </span>
+                        </span>
+                    ) : '生成建議郵件'}
+                </button>
+            )}
+
+            {/* Preview Mode */}
+            {viewMode === 'preview' && (
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', backgroundColor: '#f9f9f9' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h4 style={{ margin: 0, color: '#336179' }}>AI 建議內容</h4>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                                onClick={handleGenerateAI}
+                                disabled={isGenerating}
+                                style={{
+                                    padding: '6px 12px',
+                                    fontSize: '13px',
+                                    backgroundColor: 'white',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {isGenerating ? '重新生成...' : '重新生成'}
+                            </button>
+                        </div>
+                    </div>
+                    <div className="ooda-ai-markdown-content" style={{ maxHeight: '400px', overflowY: 'auto', backgroundColor: 'white', padding: '12px', borderRadius: '6px', position: 'relative' }}>
+                        <div style={{ opacity: isGenerating ? 0.3 : 1, transition: 'opacity 0.3s' }}>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {previewContent}
+                            </ReactMarkdown>
+                        </div>
+
+                        {/* Loading Overlay with Jokes (Preview Mode) */}
+                        {isGenerating && (
+                            <div style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                zIndex: 10,
+                                pointerEvents: 'none'
+                            }}>
+                                <div style={{
+                                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                    padding: '20px',
+                                    borderRadius: '12px',
+                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                                    textAlign: 'center',
+                                    maxWidth: '90%'
+                                }}>
+                                    <div style={{ fontSize: '24px', marginBottom: '12px' }}>🤖 💭</div>
+                                    <div style={{ fontSize: '15px', fontWeight: 600, color: '#4b5563', whiteSpace: 'pre-line' }}>
+                                        {jokes[currentJokeIndex]}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        onClick={handleUseDraft}
+                        style={{
+                            ...styles.sendBtn,
+                            marginTop: '16px',
+                            backgroundColor: '#0f766e' // distinct color
+                        }}
+                    >
+                        使用此草稿 (可編輯)
+                    </button>
                 </div>
             )}
 
-            {/* Recipient */}
-            <div style={styles.inputGroup}>
-                <label style={styles.label}>收件人</label>
-                {contactsWithEmail.length > 0 && (
-                    <select
-                        value={selectedContactId}
-                        onChange={(e) => {
-                            setSelectedContactId(e.target.value);
-                            if (e.target.value) setCustomEmail('');
-                        }}
-                        style={{ ...styles.input, cursor: 'pointer' }}
-                    >
-                        <option value="">-- 選擇聯絡人 --</option>
-                        {contactsWithEmail.map(contact => (
-                            <option key={contact.id} value={contact.id}>
-                                {contact.name} {contact.title ? `(${contact.title})` : ''} - {contact.email}
-                            </option>
-                        ))}
-                    </select>
-                )}
-                <input
-                    type="email"
-                    value={customEmail}
-                    onChange={(e) => {
-                        setCustomEmail(e.target.value);
-                        if (e.target.value) setSelectedContactId('');
-                    }}
-                    placeholder="或手動輸入 Email 地址"
-                    style={styles.input}
-                />
-            </div>
+            {/* Compose Fields (Subject & Body) - Only show in compose mode */}
+            {viewMode === 'compose' && (
+                <>
+                    {/* Subject */}
+                    <div style={styles.inputGroup}>
+                        <label style={styles.label}>主旨</label>
+                        <input
+                            type="text"
+                            value={subject}
+                            onChange={(e) => setSubject(e.target.value)}
+                            placeholder="輸入郵件主旨..."
+                            style={styles.input}
+                        />
+                    </div>
 
-            {/* AI Generate Button */}
-            <button
-                onClick={handleGenerateAI}
-                disabled={isGenerating || (!selectedContactId && !customEmail)}
-                style={{
-                    ...styles.generateBtn,
-                    opacity: (isGenerating || (!selectedContactId && !customEmail)) ? 0.6 : 1,
-                    cursor: (isGenerating || (!selectedContactId && !customEmail)) ? 'not-allowed' : 'pointer'
-                }}
-            >
-                {isGenerating ? '⏳ AI 正在生成建議...' : '✨ 生成 AI 建議郵件'}
-            </button>
+                    {/* Body */}
+                    <div style={styles.inputGroup}>
+                        <label style={styles.label}>內容</label>
+                        <textarea
+                            value={body}
+                            onChange={(e) => setBody(e.target.value)}
+                            placeholder="輸入郵件內容..."
+                            style={styles.textarea}
+                            rows={8}
+                        />
+                    </div>
 
-            {/* Subject */}
-            <div style={styles.inputGroup}>
-                <label style={styles.label}>主旨</label>
-                <input
-                    type="text"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    placeholder="輸入郵件主旨..."
-                    style={styles.input}
-                />
-            </div>
-
-            {/* Body */}
-            <div style={styles.inputGroup}>
-                <label style={styles.label}>內容</label>
-                <textarea
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    placeholder="輸入郵件內容..."
-                    style={styles.textarea}
-                    rows={8}
-                />
-            </div>
-
-            {/* Actions */}
-            <div style={styles.actions}>
-                <button style={styles.cancelBtn} onClick={onCancel} disabled={isSending}>
-                    返回洞察
-                </button>
-                <button
-                    onClick={handleSend}
-                    disabled={isSending || !recipientEmail || !subject}
-                    style={{
-                        ...styles.sendBtn,
-                        opacity: (isSending || !recipientEmail || !subject) ? 0.6 : 1,
-                        cursor: (isSending || !recipientEmail || !subject) ? 'not-allowed' : 'pointer'
-                    }}
-                >
-                    {isSending ? '發送中...' : '📤 發送郵件'}
-                </button>
-            </div>
+                    {/* Actions */}
+                    <div style={styles.actions}>
+                        <button
+                            onClick={handleSend}
+                            disabled={isSending || !hasSelection || !subject}
+                            style={{
+                                ...styles.sendBtn,
+                                opacity: (isSending || !hasSelection || !subject) ? 0.6 : 1,
+                                cursor: (isSending || !hasSelection || !subject) ? 'not-allowed' : 'pointer'
+                            }}
+                        >
+                            {isSending ? '發送中...' : '發送郵件'}
+                        </button>
+                    </div>
+                </>
+            )}
         </div>
     );
 };

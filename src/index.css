@@ -5,24 +5,35 @@
 
 :root {
   /* Primary Brand Colors */
-  --color-primary: #1F3A4C;    /* Deep Ocean Blue */
+  --color-primary: #1F3A4C;
+  /* Deep Ocean Blue */
   --color-primary-light: #2C526D;
-  --color-accent: #3B82F6;     /* Action Blue */
-  
+  --color-accent: #3B82F6;
+  /* Action Blue */
+
   /* Status Colors */
-  --color-success: #10B981;    /* Emerald */
-  --color-warning: #F59E0B;    /* Warm Orange */
-  --color-danger: #EF4444;     /* Red */
-  
+  --color-success: #10B981;
+  /* Emerald */
+  --color-warning: #F59E0B;
+  /* Warm Orange */
+  --color-danger: #EF4444;
+  /* Red */
+
   /* Backgrounds */
-  --color-bg-app: #f4f6f8;     /* Main App Background */
-  --color-bg-card: #FFFFFF;    /* Card White */
-  --color-bg-subtle: #F8FAFC;  /* Subtle Gray backgrounds */
+  --color-bg-app: #f4f6f8;
+  /* Main App Background */
+  --color-bg-card: #FFFFFF;
+  /* Card White */
+  --color-bg-subtle: #F8FAFC;
+  /* Subtle Gray backgrounds */
 
   /* Text Colors */
-  --color-text-main: #1A202C;  /* Dark Slate */
-  --color-text-secondary: #64748B; /* Meta text */
-  --color-text-muted: #94A3B8; /* Muted text */
+  --color-text-main: #1A202C;
+  /* Dark Slate */
+  --color-text-secondary: #64748B;
+  /* Meta text */
+  --color-text-muted: #94A3B8;
+  /* Muted text */
 
   /* Fonts */
   --font-heading: 'Playfair Display', serif;
@@ -61,4 +72,139 @@ body,
 #custpage_react_root_val {
   margin: 0 !important;
   padding: 0 !important;
+}
+
+/* ========================================
+   AI Markdown Content Styling
+   ======================================== */
+.ooda-ai-markdown-content {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-main);
+  background-color: var(--color-bg-card);
+  border-radius: 8px;
+  /* Removed padding as the container might already have padding */
+  /* padding: 16px; */
+  overflow-x: auto;
+}
+
+.ooda-ai-markdown-content h1,
+.ooda-ai-markdown-content h2,
+.ooda-ai-markdown-content h3,
+.ooda-ai-markdown-content h4 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  color: var(--color-primary);
+  line-height: 1.3;
+}
+
+.ooda-ai-markdown-content h1 {
+  font-size: 1.5em;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 0.3em;
+}
+
+.ooda-ai-markdown-content h2 {
+  font-size: 1.3em;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.3em;
+}
+
+.ooda-ai-markdown-content h3 {
+  font-size: 1.1em;
+}
+
+.ooda-ai-markdown-content h4 {
+  font-size: 1em;
+}
+
+.ooda-ai-markdown-content p {
+  margin-bottom: 1em;
+}
+
+.ooda-ai-markdown-content ul,
+.ooda-ai-markdown-content ol {
+  margin-bottom: 1em;
+  padding-left: 20px;
+}
+
+.ooda-ai-markdown-content ul {
+  list-style-type: disc;
+}
+
+.ooda-ai-markdown-content ol {
+  list-style-type: decimal;
+}
+
+.ooda-ai-markdown-content li {
+  margin-bottom: 0.25em;
+}
+
+.ooda-ai-markdown-content blockquote {
+  border-left: 4px solid var(--color-accent);
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.ooda-ai-markdown-content code {
+  font-family: 'Courier New', Courier, monospace;
+  background-color: #f1f5f9;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: #ef4444;
+  /* Red-ish for code */
+}
+
+.ooda-ai-markdown-content pre {
+  background-color: #1e293b;
+  color: #f8fafc;
+  padding: 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 1em;
+}
+
+.ooda-ai-markdown-content pre code {
+  background-color: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.ooda-ai-markdown-content a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.ooda-ai-markdown-content a:hover {
+  text-decoration: underline;
+}
+
+.ooda-ai-markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1em;
+}
+
+.ooda-ai-markdown-content th,
+.ooda-ai-markdown-content td {
+  border: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.ooda-ai-markdown-content th {
+  background-color: var(--color-bg-subtle);
+  font-weight: 600;
+}
+
+.ooda-ai-markdown-content hr {
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+  margin: 2em 0;
 }

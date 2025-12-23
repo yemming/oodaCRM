@@ -809,8 +809,8 @@ export const fetchStatuses = async (): Promise<{ success: boolean; statuses: Opp
 
 export interface SendEmailParams {
     opportunityId: string;
-    recipientContactId?: string;
-    recipientEmail: string;
+    recipientContactIds?: string[]; // Multiple contact IDs
+    recipientEmails: string[];      // Multiple emails
     emailSubject: string;
     emailBody: string;
 }
@@ -822,7 +822,7 @@ export interface SendEmailParams {
 export const sendEmail = async (params: SendEmailParams): Promise<{ success: boolean; message?: string; error?: string }> => {
     if (!isNetSuite) {
         console.log('[Local] Would send email:', params);
-        return { success: true, message: `[Demo] Email sent to ${params.recipientEmail}` };
+        return { success: true, message: `[Demo] Email sent to ${params.recipientEmails.join(', ')}` };
     }
 
     try {
@@ -834,8 +834,8 @@ export const sendEmail = async (params: SendEmailParams): Promise<{ success: boo
             body: JSON.stringify({
                 action: 'sendEmail',
                 opportunityId: params.opportunityId,
-                recipientContactId: params.recipientContactId,
-                recipientEmail: params.recipientEmail,
+                recipientContactIds: params.recipientContactIds,
+                recipientEmails: params.recipientEmails,
                 emailSubject: params.emailSubject,
                 emailBody: params.emailBody
             })

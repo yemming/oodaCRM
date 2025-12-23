@@ -124,8 +124,8 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                     // Email Params (for sendEmail action)
                     var emailSubject = body.emailSubject;
                     var emailBodyContent = body.emailBody;
-                    var recipientEmail = body.recipientEmail;
-                    var recipientContactId = body.recipientContactId;
+                    var recipientEmails = body.recipientEmails; // Array
+                    var recipientContactIds = body.recipientContactIds; // Array
                 } else {
                     opportunityId = request.parameters.opportunityId;
                     newStatus = request.parameters.newStatus;
@@ -230,7 +230,7 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                 } else if (action === 'getStatuses') {
                     result = { success: true, statuses: getOpportunityStatuses() };
                 } else if (action === 'sendEmail') {
-                    result = sendEmailToContact(opportunityId, recipientContactId, recipientEmail, emailSubject, emailBodyContent);
+                    result = sendEmailToContact(opportunityId, recipientContactIds, recipientEmails, emailSubject, emailBodyContent);
                 } else {
                     result = { success: false, error: `Unknown action: ${action}` };
                 }
@@ -655,16 +655,16 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
          * Send Email to a Contact (using N/email module)
          * The email will be attached to the Opportunity in NetSuite Communications
          * @param {string} opportunityId - The Opportunity Internal ID
-         * @param {string} recipientContactId - The Contact Internal ID (optional, used for relatedRecords)
-         * @param {string} recipientEmail - The recipient email address
+         * @param {string[]} recipientContactIds - The Contact Internal IDs (optional)
+         * @param {string[]} recipientEmails - The recipient email addresses (array)
          * @param {string} subject - Email subject
          * @param {string} body - Email body (HTML supported)
          * @returns {Object} - Success status and message ID
          */
-        const sendEmailToContact = (opportunityId, recipientContactId, recipientEmail, subject, body) => {
+        const sendEmailToContact = (opportunityId, recipientContactIds, recipientEmails, subject, body) => {
             try {
-                if (!recipientEmail) {
-                    return { success: false, error: 'Recipient email is required' };
+                if (!recipientEmails || (Array.isArray(recipientEmails) && recipientEmails.length === 0)) {
+                    return { success: false, error: 'Recipient emails are required' };
                 }
                 if (!subject) {
                     return { success: false, error: 'Email subject is required' };
@@ -673,7 +673,7 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                 const currentUser = runtime.getCurrentUser();
                 log.debug('Sending Email', {
                     from: currentUser.id,
-                    to: recipientEmail,
+                    to: recipientEmails,
                     subject: subject,
                     opportunityId: opportunityId
                 });
@@ -683,23 +683,26 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                 if (opportunityId) {
                     relatedRecords.transactionId = opportunityId;
                 }
-                if (recipientContactId) {
-                    relatedRecords.entityId = recipientContactId;
+                // Note: NetSuite N/email.send recipients can be a string or array of strings.
+                // relatedRecords.entityId typically takes a single ID for the "To" field record attachment.
+                // If there are multiple, we might attach to the first one or just the transaction.
+                if (recipientContactIds && Array.isArray(recipientContactIds) && recipientContactIds.length > 0) {
+                    relatedRecords.entityId = recipientContactIds[0];
                 }
 
                 // Send email using N/email module
                 email.send({
                     author: currentUser.id,
-                    recipients: recipientEmail,
+                    recipients: recipientEmails,
                     subject: subject,
                     body: body || '',
                     relatedRecords: relatedRecords
                 });
 
-                log.audit('Email Sent', `To: ${recipientEmail}, Subject: ${subject}, Opp: ${opportunityId}`);
+                log.audit('Email Sent', `To: ${recipientEmails}, Subject: ${subject}, Opp: ${opportunityId}`);
                 return {
                     success: true,
-                    message: `Email sent successfully to ${recipientEmail}`
+                    message: `Email sent successfully to ${recipientEmails}`
                 };
             } catch (e) {
                 log.error('Send Email Error', e.message + ' - Stack: ' + e.stack);
@@ -1109,7 +1112,8 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                 search.create({
                     type: 'customrecord_ooda_config',
                     filters: [['custrecord_ooda_config_key', 'is', key]],
-                    columns: ['custrecord_ooda_config_value']
+                    columns: ['custrecord_ooda_config_value'],
+                    sorts: [{ name: 'internalid', sort: search.Sort.DESC }]
                 }).run().each(result => {
                     value = result.getValue('custrecord_ooda_config_value');
                     return false;
@@ -1146,7 +1150,24 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                 const currentUser = runtime.getCurrentUser();
 
                 // Fetch N8N Config
-                const n8nAiUrl = getConfigValue('n8n_ai_insight_url') || '';
+                const n8nAiUrl = getConfigValue('n8n_url') || ''; // Correct key matching OodaSettings
+                // If the user used the new proper key in settings, we might want to check that too, 
+                // but let's stick to what's in OodaSettings_Suitelet.js: KEY_AI_INSIGHT = 'n8n_url'
+                // Wait, in Settings Suitelet I used 'n8n_url'. Here it says 'n8n_ai_insight_url'.
+                // I need to be careful. The Settings Suitelet used 'n8n_url'. 
+                // Let's check what key I used in Settings Suitelet just now.
+                // Settings Suitelet: const KEY_AI_INSIGHT = 'n8n_url';
+                // Kanban Suitelet (existing): const n8nAiUrl = getConfigValue('n8n_ai_insight_url') || '';
+
+                // It seems there might be a mismatch or I should check both. 
+                // For now, I'll fetch the new key I added: 'n8n_key'.
+                const n8nKey = getConfigValue('n8n_key') || '';
+
+                // Also, let's try to fetch 'n8n_url' as well just in case, to match the Settings Suitelet.
+                // But if 'n8n_ai_insight_url' was working, maybe I shouldn't break it. 
+                // The user said: "1. 在設定的頁面加上一個 N8NKEY 的 field... 2. 我在打 N8N webhook 的時候... 要把這個值當header的丟到 N8N"
+                // The user didn't explicitly ask to fix the URL key mismatch, but I should probably align them if possible.
+                // However, safe bet is to just add the new key.
 
                 // Inject data into HTML (including status info for debugging)
                 // Generate proper Suitelet URL using url.resolveScript
@@ -1182,7 +1203,8 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
             userId: '${currentUser.id}',
             userName: '${currentUser.name}',
             role: '${currentUser.role}',
-            n8nAiUrl: '${n8nAiUrl}'
+            n8nAiUrl: '${n8nAiUrl}',
+            n8nKey: '${n8nKey}'
           };
           window.NETSUITE_DATA = {
             opportunities: ${JSON.stringify(opportunities)},
@@ -1193,6 +1215,7 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
           console.log('🔗 Status Mapping:', window.NETSUITE_DATA.statusMapping);
           console.log('🌐 Suitelet URL:', window.NETSUITE_CONTEXT.suiteletUrl);
           console.log('🤖 N8N URL:', window.NETSUITE_CONTEXT.n8nAiUrl ? 'Configured' : 'Missing');
+          console.log('🔑 N8N Key:', window.NETSUITE_CONTEXT.n8nKey ? 'Configured' : 'Missing');
         </script>
       `;
                 htmlContent = htmlContent.replace('<head>', '<head>' + dataScript);
