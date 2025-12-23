@@ -1,6 +1,6 @@
 <customrecordtype scriptid="customrecord_ooda_analysis">
     <recordname>OODA Analysis</recordname>
-    <accesstype>CUSTRECORDENTRYPERM</accesstype>
+    <accesstype>NONENEEDED</accesstype>
     <customrecordcustomfields>
         <customrecordcustomfield scriptid="custrecord_ooda_opp">
             <label>Related Opportunity</label>

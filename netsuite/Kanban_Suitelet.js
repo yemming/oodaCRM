@@ -154,6 +154,20 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
                 } else if (action === 'updateProbability') {
                     const prob = request.body ? JSON.parse(request.body).probability : request.parameters.probability;
                     result = updateOpportunityProbability(opportunityId, prob);
+                } else if (action === 'updateAmount') {
+                    const amount = request.parameters.amount || (request.body && JSON.parse(request.body).amount);
+                    if (!opportunityId || !amount) {
+                        result = { success: false, error: 'Missing parameters' };
+                    } else {
+                        result = updateOpportunityAmount(opportunityId, amount);
+                    }
+                } else if (action === 'updateCloseDate') {
+                    const closeDate = request.parameters.closeDate || (request.body && JSON.parse(request.body).closeDate);
+                    if (!opportunityId || !closeDate) {
+                        result = { success: false, error: 'Missing parameters' };
+                    } else {
+                        result = updateOpportunityCloseDate(opportunityId, closeDate);
+                    }
                 } else if (action === 'updateMemo') {
                     // Handle Memo Update
                     // We need to retrieve memo from either body or params depending on parsing above
@@ -606,6 +620,70 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
         };
 
         /**
+         * Update Opportunity Amount (Projected Total)
+         */
+        const updateOpportunityAmount = (opportunityId, amount) => {
+            try {
+                log.audit('Updating Amount', `Opp: ${opportunityId}, Amount: ${amount}`);
+
+                record.submitFields({
+                    type: record.Type.OPPORTUNITY,
+                    id: opportunityId,
+                    values: {
+                        projectedtotal: amount
+                    },
+                    options: {
+                        enableSourcing: false,
+                        ignoreMandatoryFields: true
+                    }
+                });
+
+                return { success: true };
+            } catch (e) {
+                log.error('Update Amount Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
+         * Update Opportunity Close Date
+         */
+        const updateOpportunityCloseDate = (opportunityId, closeDate) => {
+            try {
+                // Expected format: YYYY-MM-DD from HTML input
+                log.audit('Updating Close Date', `Opp: ${opportunityId}, Date: ${closeDate}`);
+
+                // NetSuite usually expects Date object or specific string format.
+                // Since N/format isn't explicitly imported as 'format' but maybe 'N/format' available?
+                // The script definition line 13: (serverWidget, file, runtime, search, record, log, url, query, email) => {
+                // 'N/format' is NOT in the module list I saw in earlier views? 
+
+                // Wait, checking the view_file from step 419 (outline), I can't see the define block fully.
+                // Assuming I need to parse the date string "YYYY-MM-DD" to a Date object.
+                // JavaScript new Date(string) might work if timezone matches, but safer to parse manually.
+                const parts = closeDate.split('-'); // 2025-12-23
+                const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+
+                record.submitFields({
+                    type: record.Type.OPPORTUNITY,
+                    id: opportunityId,
+                    values: {
+                        expectedclosedate: dateObj
+                    },
+                    options: {
+                        enableSourcing: false,
+                        ignoreMandatoryFields: true
+                    }
+                });
+
+                return { success: true };
+            } catch (e) {
+                log.error('Update Close Date Error', e.message);
+                return { success: false, error: e.message };
+            }
+        };
+
+        /**
          * Update Opportunity Probability
          */
         const updateOpportunityProbability = (opportunityId, probability) => {
@@ -795,7 +873,7 @@ define(['N/ui/serverWidget', 'N/file', 'N/runtime', 'N/search', 'N/record', 'N/l
             const oppSearch = search.create({
                 type: search.Type.OPPORTUNITY,
                 columns: [
-                    search.createColumn({ name: 'internalid' }),
+                    search.createColumn({ name: 'internalid', sort: search.Sort.DESC }), // Sort by ID DESC to get newest first
                     search.createColumn({ name: 'tranid' }), // Add Transaction ID
                     search.createColumn({ name: 'title' }),
                     search.createColumn({ name: 'entity' }),

@@ -180,6 +180,108 @@ export const extractTextFromN8NResponse = (data: any): string => {
     return JSON.stringify(data, null, 2);
 };
 
+// Scorecard Definitions extracted from OpportunityScorecard.tsx
+const SCORECARD_DEFINITIONS = {
+    'T': {
+        label: 'T (Territory)',
+        description: '區域',
+        items: {
+            't1': '發現區域內的機會',
+            't2': '滿足市場標準',
+            't3': '發現潛在支持者',
+            't4': '建立初步聯繫',
+        }
+    },
+    'S': {
+        label: 'S (Suspect)',
+        description: '合格的潛在客戶',
+        items: {
+            's1': '支持者承認痛苦',
+            's2': '支持者有具有價值的購買構想',
+            's3': '支持者同意繼續協商購買',
+            's4': '支持者同意引薦權力支持者',
+            's5': '在支持者信函中就上述事項達成一致',
+        }
+    },
+    'D': {
+        label: 'D (Discovery)',
+        description: '合格的支持者',
+        items: {
+            'd1': '與權力支持者會面',
+            'd2': '權力支持者承認痛苦',
+            'd3': '權力支持者有具有價值的購買構想',
+            'd4': '權力支持者同意繼續協商購買',
+            'd5': '提出評估計劃',
+            'd6': '就評估計劃達成一致',
+        }
+    },
+    'C': {
+        label: 'C (Champion)',
+        description: '合格的權力支持者',
+        items: {
+            'c1': '評估計劃談判',
+            'c2': '提案前評審',
+            'c3': '請求業務',
+            'c4': '商討提案',
+            'c5': '收到口頭支持',
+        }
+    },
+    'B': {
+        label: 'B (Best Few)',
+        description: '決策定案',
+        items: {
+            'b1': '就合約進行談判',
+        }
+    },
+    'A': {
+        label: 'A (Agreement)',
+        description: '等候結案',
+        items: {
+            'a1': '書面簽約',
+        }
+    },
+    'W': {
+        label: 'W (Win)',
+        description: '成交',
+        items: {
+            'w1': '更新潛在客戶數據庫',
+        }
+    }
+};
+
+/**
+ * Helper: Map scorecard checks to text
+ */
+const mapScorecardData = (data: any) => {
+    if (!data || !data.scorecardChecks) return data;
+
+    const checks = data.scorecardChecks;
+    const mapped: any = {
+        probability: data.probability,
+        milestones: []
+    };
+
+    Object.entries(SCORECARD_DEFINITIONS).forEach(([, section]) => {
+        const milestoneSection = {
+            stage: section.label,
+            description: section.description,
+            items: [] as any[]
+        };
+
+        Object.entries(section.items).forEach(([itemId, text]) => {
+            milestoneSection.items.push({
+                id: itemId,
+                text: text,
+                checked: !!checks[itemId]
+            });
+        });
+
+        mapped.milestones.push(milestoneSection);
+    });
+
+    return mapped;
+};
+
 /**
  * Helper: Create AI Insight payload
  */
@@ -198,7 +300,7 @@ export const createAIInsightPayload = (
     buyingCenter: options?.buyingCenter,
     weeklyNotes: options?.weeklyNotes,
     activities: options?.activities,
-    scorecardData: options?.scorecardData
+    scorecardData: mapScorecardData(options?.scorecardData)
 });
 
 /**
@@ -241,7 +343,7 @@ export const createEmailTemplatePayload = (
         buyingCenter: data.buyingCenter,
         weeklyNotes: data.weeklyNotes,
         activities: data.activities,
-        scorecardData: data.scorecardData,
+        scorecardData: mapScorecardData(data.scorecardData),
         observation: data.observation
     };
 };
@@ -309,7 +411,7 @@ export const createJEPPayload = (
     buyingCenter: options.buyingCenter,
     weeklyNotes: options.weeklyNotes,
     activities: options.activities,
-    scorecardData: options.scorecardData,
+    scorecardData: mapScorecardData(options.scorecardData),
     formData: options.formData
 });
 

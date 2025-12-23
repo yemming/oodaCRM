@@ -10,7 +10,9 @@ import {
     fetchOodaAnalysis,
     fetchContacts,
     updateOpportunityProbability,
-    updateOpportunityMemo
+    updateOpportunityMemo,
+    updateOpportunityAmount,
+    updateOpportunityCloseDate
 } from '../services/api';
 import { OpportunityScorecard } from './OpportunityScorecard';
 import { PainSheet } from './PainSheet';
@@ -65,6 +67,23 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
     const [painSheetContact, setPainSheetContact] = useState<Contact | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState<boolean | null>(null);
+
+    // Amount State
+    const [amount, setAmount] = useState(opportunity.amount);
+
+    // Close Date State (Expected: string YYYY-MM-DD or similar from NetSuite)
+    // Need to ensure it's in YYYY-MM-DD for input type="date"
+    const formatDateForInput = (dateStr: string) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '';
+        // Use local time components to prevent timezone shifts (e.g., UTC conversion causing off-by-one day)
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+    const [closeDate, setCloseDate] = useState(formatDateForInput(opportunity.closeDate));
 
     // Details (Memo) State
     const [details, setDetails] = useState('');
@@ -648,11 +667,43 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
 
     // Scorecard State
     const [scorecardChecks, setScorecardChecks] = useState<Record<string, boolean>>({});
+    const isFirstRun = useRef(true);
 
     const handleScoreChange = (score: number, checks: Record<string, boolean>) => {
         setProbability(score);
         setScorecardChecks(checks);
     };
+
+    // Auto-save effect for Scorecard (Debounced)
+    useEffect(() => {
+        // Skip the first run to avoid saving initial state
+        if (isFirstRun.current) {
+            isFirstRun.current = false;
+            return;
+        }
+
+        // Debounce save execution
+        const timer = setTimeout(() => {
+            console.log('💾 Auto-saving scorecard...', { probability, checksCount: Object.keys(scorecardChecks).length });
+
+            saveOodaAnalysis(
+                opportunity.id,
+                JSON.stringify(analysisData),
+                contacts,
+                { probability, scorecardChecks }
+            ).then(res => {
+                if (res.success) {
+                    console.log('✅ Scorecard auto-saved');
+                    updateOpportunityProbability(opportunity.id, probability).catch(console.error);
+                } else {
+                    console.error('❌ Scorecard auto-save failed', res.error);
+                }
+            });
+        }, 1500);
+
+        return () => clearTimeout(timer);
+    }, [scorecardChecks, probability, contacts, analysisData, opportunity.id]);
+
 
     // Drag and Drop handlers
     const handleDragStart = (event: DragStartEvent) => {
@@ -741,6 +792,12 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
 
             // Save Details (Memo)
             await updateOpportunityMemo(opportunity.id, details);
+
+            // Save Amount
+            await updateOpportunityAmount(opportunity.id, amount);
+
+            // Save Close Date
+            await updateOpportunityCloseDate(opportunity.id, closeDate);
 
             console.log('✅ Saved:', { contacts: contacts.length, probability: probability });
             setSaveSuccess(true);
@@ -945,13 +1002,49 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                             </div>
                             <div className="ooda-kpi-card">
                                 <span className="ooda-label">預計金額</span>
-                                <span className="ooda-value ooda-value-success">
-                                    ${opportunity.amount.toLocaleString()}
-                                </span>
+                                <div className="ooda-value-container" style={{ display: 'flex', alignItems: 'center' }}>
+                                    <span className="ooda-value ooda-value-success" style={{ marginRight: '4px' }}>$</span>
+                                    <input
+                                        type="number"
+                                        value={amount}
+                                        onChange={(e) => setAmount(Number(e.target.value))}
+                                        className="ooda-amount-input ooda-value ooda-value-success"
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            borderBottom: '1px dashed #cbd5e1',
+                                            outline: 'none',
+                                            width: '100px',
+                                            padding: '0',
+                                            fontSize: 'inherit',
+                                            fontWeight: 'bold', // BOLD request
+                                            color: '#10b981'
+                                        }}
+                                        title="點擊修改預計金額"
+                                    />
+                                </div>
                             </div>
                             <div className="ooda-kpi-card">
                                 <span className="ooda-label">預計成案日</span>
-                                <span className="ooda-value">{opportunity.closeDate}</span>
+                                <input
+                                    type="date"
+                                    value={closeDate}
+                                    onChange={(e) => setCloseDate(e.target.value)}
+                                    className="ooda-value"
+                                    style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderBottom: '1px dashed #cbd5e1',
+                                        outline: 'none',
+                                        width: '120px',
+                                        padding: '0',
+                                        fontSize: 'inherit',
+                                        fontWeight: 'inherit',
+                                        color: 'inherit',
+                                        textAlign: 'center'
+                                    }}
+                                    title="點擊修改預計成案日"
+                                />
                             </div>
                             <div className="ooda-kpi-card">
                                 <span className="ooda-label">成交機率</span>
@@ -1483,13 +1576,13 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                     className="ooda-add-note-btn"
                                                     onClick={() => setShowAddEvent(!showAddEvent)}
                                                 >
-                                                    {showAddEvent ? '取消' : '新增行程'}
+                                                    {showAddEvent ? '取消' : '新增會議記錄'}
                                                 </button>
                                                 {showAddEvent && (
                                                     <div className="ooda-add-note-form">
                                                         <input
                                                             type="text"
-                                                            placeholder="行程標題"
+                                                            placeholder="會議主題"
                                                             value={newEventTitle}
                                                             onChange={(e) => setNewEventTitle(e.target.value)}
                                                             className="ooda-note-input"
@@ -1502,7 +1595,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                             className="ooda-note-input"
                                                         />
                                                         <textarea
-                                                            placeholder="行程備註..."
+                                                            placeholder="會議內容..."
                                                             value={newEventMessage}
                                                             onChange={(e) => setNewEventMessage(e.target.value)}
                                                             rows={4}
@@ -1514,14 +1607,14 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                             onClick={handleAddEvent}
                                                             disabled={submittingEvent}
                                                         >
-                                                            {submittingEvent ? '提交中...' : '建立行程'}
+                                                            {submittingEvent ? '提交中...' : '建立會議記錄'}
                                                         </button>
                                                     </div>
                                                 )}
                                                 {loadingEvents ? (
                                                     <div className="ooda-loading">載入中...</div>
                                                 ) : events.length === 0 ? (
-                                                    <div className="ooda-empty">尚無行程記錄</div>
+                                                    <div className="ooda-empty">尚無會議記錄</div>
                                                 ) : (
                                                     <div className="ooda-timeline-container no-line" style={{ paddingLeft: 0, borderLeft: 'none' }}>
                                                         {events.map(event => (

@@ -191,7 +191,14 @@ define(['N/https', 'N/search', 'N/log', 'N/runtime', 'N/record', 'N/file'],
                 }
 
                 if (ocrData.email) customerRec.setValue({ fieldId: 'email', value: ocrData.email });
-                if (ocrData.website) customerRec.setValue({ fieldId: 'url', value: ocrData.website });
+
+                if (ocrData.website) {
+                    let websiteUrl = ocrData.website;
+                    if (websiteUrl && !websiteUrl.match(/^https?:\/\//)) {
+                        websiteUrl = 'https://' + websiteUrl;
+                    }
+                    customerRec.setValue({ fieldId: 'url', value: websiteUrl });
+                }
 
                 customerId = customerRec.save();
                 isNewCustomer = true;
@@ -208,12 +215,20 @@ define(['N/https', 'N/search', 'N/log', 'N/runtime', 'N/record', 'N/file'],
                 contactRec.setValue({ fieldId: 'company', value: customerId });
             }
 
-            // Also set subsidiary for Contact if distinct? Usually inherits from Company. 
-            // But if no company (standalone contact), might need it. 
-            // Here we assume we always have a company or created one.
+            // Determine Name Parts
+            let firstName = ocrData.firstName || 'Unknown';
+            let lastName = ocrData.lastName || 'Unknown';
 
-            contactRec.setValue({ fieldId: 'firstname', value: ocrData.firstName || 'Unknown' });
-            contactRec.setValue({ fieldId: 'lastname', value: ocrData.lastName || 'Unknown' });
+            if (ocrData.chineseName && ocrData.chineseName.length > 0) {
+                // User Requirement: 
+                // Last Name: The first character.
+                // First Name: All remaining characters.
+                lastName = ocrData.chineseName.substring(0, 1);
+                firstName = ocrData.chineseName.substring(1);
+            }
+
+            contactRec.setValue({ fieldId: 'firstname', value: firstName });
+            contactRec.setValue({ fieldId: 'lastname', value: lastName });
             if (ocrData.jobTitle) contactRec.setValue({ fieldId: 'title', value: ocrData.jobTitle });
             if (ocrData.email) contactRec.setValue({ fieldId: 'email', value: ocrData.email });
             if (ocrData.mobile) contactRec.setValue({ fieldId: 'mobilephone', value: ocrData.mobile });

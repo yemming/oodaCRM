@@ -330,7 +330,7 @@
 }
 
 .ooda-matrix-cell.champion {
-  border-top-color: var(--color-success);
+  border-top-color: var(--color-warning);
 }
 
 .ooda-matrix-cell.blocker {
@@ -343,7 +343,7 @@
 }
 
 .ooda-matrix-cell.supporter {
-  border-top-color: var(--color-warning);
+  border-top-color: var(--color-success);
 }
 
 .ooda-cell-header {

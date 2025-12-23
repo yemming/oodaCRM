@@ -30,7 +30,8 @@ define(['N/https', 'N/search', 'N/log', 'N/runtime', 'N/record', 'N/file'],
             search.create({
                 type: CONFIG_RECORD_TYPE,
                 filters: [[FIELD_KEY, 'is', key]],
-                columns: [FIELD_VALUE]
+                columns: [FIELD_VALUE],
+                sorts: [{ name: 'internalid', sort: search.Sort.DESC }] // Get latest config
             }).run().each(result => {
                 value = result.getValue(FIELD_VALUE);
                 return false;
@@ -117,7 +118,7 @@ define(['N/https', 'N/search', 'N/log', 'N/runtime', 'N/record', 'N/file'],
             const n8nKey = getConfigValue(KEY_N8N_AUTH);
             if (!n8nUrl) throw new Error('N8N Webhook URL not configured.');
 
-            log.debug('Sending to N8N', `URL: ${n8nUrl}, File: ${fileName}`);
+            log.debug('Sending to N8N', `URL: ${n8nUrl}, Key: ${n8nKey ? 'Configured' : 'Missing'}, File: ${fileName}`);
 
             const n8nPayload = {
                 requestType: 'ocr_namecard',
@@ -158,7 +159,7 @@ define(['N/https', 'N/search', 'N/log', 'N/runtime', 'N/record', 'N/file'],
 
                 return { success: true, data: responseData };
             } else {
-                throw new Error(`N8N returned status ${n8nResponse.code}: ${n8nResponse.body}`);
+                throw new Error(`N8N returned status ${n8nResponse.code} when calling ${n8nUrl}. Response: ${n8nResponse.body}`);
             }
         };
 
@@ -190,7 +191,14 @@ define(['N/https', 'N/search', 'N/log', 'N/runtime', 'N/record', 'N/file'],
                 }
 
                 if (ocrData.email) customerRec.setValue({ fieldId: 'email', value: ocrData.email });
-                if (ocrData.website) customerRec.setValue({ fieldId: 'url', value: ocrData.website });
+
+                if (ocrData.website) {
+                    let websiteUrl = ocrData.website;
+                    if (websiteUrl && !websiteUrl.match(/^https?:\/\//)) {
+                        websiteUrl = 'https://' + websiteUrl;
+                    }
+                    customerRec.setValue({ fieldId: 'url', value: websiteUrl });
+                }
 
                 customerId = customerRec.save();
                 isNewCustomer = true;
@@ -207,12 +215,20 @@ define(['N/https', 'N/search', 'N/log', 'N/runtime', 'N/record', 'N/file'],
                 contactRec.setValue({ fieldId: 'company', value: customerId });
             }
 
-            // Also set subsidiary for Contact if distinct? Usually inherits from Company. 
-            // But if no company (standalone contact), might need it. 
-            // Here we assume we always have a company or created one.
+            // Determine Name Parts
+            let firstName = ocrData.firstName || 'Unknown';
+            let lastName = ocrData.lastName || 'Unknown';
 
-            contactRec.setValue({ fieldId: 'firstname', value: ocrData.firstName || 'Unknown' });
-            contactRec.setValue({ fieldId: 'lastname', value: ocrData.lastName || 'Unknown' });
+            if (ocrData.chineseName && ocrData.chineseName.length > 0) {
+                // User Requirement: 
+                // Last Name: The first character.
+                // First Name: All remaining characters.
+                lastName = ocrData.chineseName.substring(0, 1);
+                firstName = ocrData.chineseName.substring(1);
+            }
+
+            contactRec.setValue({ fieldId: 'firstname', value: firstName });
+            contactRec.setValue({ fieldId: 'lastname', value: lastName });
             if (ocrData.jobTitle) contactRec.setValue({ fieldId: 'title', value: ocrData.jobTitle });
             if (ocrData.email) contactRec.setValue({ fieldId: 'email', value: ocrData.email });
             if (ocrData.mobile) contactRec.setValue({ fieldId: 'mobilephone', value: ocrData.mobile });

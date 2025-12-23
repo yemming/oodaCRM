@@ -286,7 +286,12 @@ function App() {
           fetchSalesReps()
         ]);
         setOpportunities(oppData);
-        if (salesRepData.success) setSalesRepOptions(salesRepData.salesReps);
+        if (salesRepData.success) {
+          setSalesRepOptions([
+            { id: '', name: '未指派 (Unassigned)', entityId: '' },
+            ...salesRepData.salesReps
+          ]);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
       } finally {
@@ -296,9 +301,22 @@ function App() {
     loadData();
   }, []);
 
-  // Dynamically derive status columns from opportunities data
+  // Dynamically derive status columns from available statuses (backend provided) or opportunities data (fallback)
   const baseStatusColumns: StatusColumn[] = useMemo(() => {
-    // Extract unique statuses with their text labels
+    // 1. Try to get all statuses from global NetSuite data injected by Suitelet
+    const nsData = (window as any).NETSUITE_DATA;
+    if (nsData && nsData.allStatuses && Array.isArray(nsData.allStatuses) && nsData.allStatuses.length > 0) {
+      return nsData.allStatuses.map((status: { id: string; name: string }, index: number) => {
+        const key = status.name.toLowerCase().replace(/\s+/g, '_');
+        return {
+          key,
+          label: status.name,
+          ...COLUMN_COLORS[index % COLUMN_COLORS.length]
+        };
+      });
+    }
+
+    // 2. Fallback: Extract unique statuses from loaded opportunities (original logic)
     const statusMap = new Map<string, string>();
     opportunities.forEach(opp => {
       if (opp.status && !statusMap.has(opp.status)) {
@@ -382,7 +400,8 @@ function App() {
       }
 
       // Sales rep filter
-      if (selectedSalesReps.length > 0 && !selectedSalesReps.includes(opp.salesRepId)) {
+      const isAllRepsSelected = selectedSalesReps.length === salesRepOptions.length;
+      if (!isAllRepsSelected && selectedSalesReps.length > 0 && !selectedSalesReps.includes(opp.salesRepId)) {
         return false;
       }
 

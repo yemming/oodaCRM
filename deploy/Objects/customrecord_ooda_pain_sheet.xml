@@ -1,6 +1,6 @@
 <customrecordtype scriptid="customrecord_ooda_pain_sheet">
     <recordname>OODA Pain Sheet</recordname>
-    <accesstype>CUSTRECORDENTRYPERM</accesstype>
+    <accesstype>NONENEEDED</accesstype>
     <customrecordcustomfields>
         <customrecordcustomfield scriptid="custrecord_ps_opportunity">
             <label>Related Opportunity</label>

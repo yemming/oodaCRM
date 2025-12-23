@@ -165,20 +165,23 @@ export const BusinessCardUploadModal = ({ onClose, isStandalone = false }: Busin
         };
     }, [isAnalyzing]);
 
+    const processFile = (selectedFile: File) => {
+        setFile(selectedFile);
+        setError(null);
+
+        // Create preview if it's an image
+        if (selectedFile.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = () => setPreview(reader.result as string);
+            reader.readAsDataURL(selectedFile);
+        } else {
+            setPreview(null);
+        }
+    };
+
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            const selectedFile = e.target.files[0];
-            setFile(selectedFile);
-            setError(null);
-
-            // Create preview if it's an image
-            if (selectedFile.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = () => setPreview(reader.result as string);
-                reader.readAsDataURL(selectedFile);
-            } else {
-                setPreview(null);
-            }
+            processFile(e.target.files[0]);
         }
     };
 
@@ -367,7 +370,7 @@ export const BusinessCardUploadModal = ({ onClose, isStandalone = false }: Busin
                                 onDrop={e => {
                                     e.preventDefault();
                                     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                                        setFile(e.dataTransfer.files[0]);
+                                        processFile(e.dataTransfer.files[0]);
                                     }
                                 }}
                             >

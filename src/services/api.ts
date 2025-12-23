@@ -115,6 +115,87 @@ export const updateOpportunityStatus = async (
 };
 
 /**
+ * Update Opportunity Amount
+ */
+export const updateOpportunityAmount = async (
+    opportunityId: string,
+    amount: number
+): Promise<{ success: boolean; error?: string }> => {
+    if (!isNetSuite) {
+        console.log(`🔧[Local] Would update amount for ${opportunityId}: ${amount}`);
+        return { success: true };
+    }
+
+    try {
+        console.log(`📡 Updating Amount for ${opportunityId}...`);
+
+        // Build URL with query parameters (GET request to avoid CSRF issues)
+        const updateUrl = `${window.NETSUITE_CONTEXT!.suiteletUrl}&action=updateAmount&opportunityId=${opportunityId}&amount=${amount}`;
+
+        const response = await fetch(updateUrl, {
+            method: 'GET',
+            credentials: 'include'
+        });
+
+        const text = await response.text();
+        try {
+            const result = JSON.parse(text);
+            if (result.success) {
+                console.log(`✅ Updated amount successfully`);
+            } else {
+                console.error(`❌ Update amount failed: ${result.error} `);
+            }
+            return result;
+        } catch {
+            return { success: false, error: 'Server returned non-JSON response' };
+        }
+    } catch (error) {
+        console.error('❌ API Error:', error);
+        return { success: false, error: String(error) };
+    }
+};
+
+/**
+ * Update Opportunity Close Date
+ */
+export const updateOpportunityCloseDate = async (
+    opportunityId: string,
+    closeDate: string
+): Promise<{ success: boolean; error?: string }> => {
+    if (!isNetSuite) {
+        console.log(`🔧[Local] Would update closeDate for ${opportunityId}: ${closeDate}`);
+        return { success: true };
+    }
+
+    try {
+        console.log(`📡 Updating Close Date for ${opportunityId}...`);
+
+        const updateUrl = `${window.NETSUITE_CONTEXT!.suiteletUrl}&action=updateCloseDate&opportunityId=${opportunityId}&closeDate=${closeDate}`;
+
+        const response = await fetch(updateUrl, {
+            method: 'GET',
+            credentials: 'include'
+        });
+
+        const text = await response.text();
+        try {
+            const result = JSON.parse(text);
+            if (result.success) {
+                console.log(`✅ Updated close date successfully`);
+            } else {
+                console.error(`❌ Update close date failed: ${result.error} `);
+            }
+            return result;
+        } catch {
+            return { success: false, error: 'Server returned non-JSON response' };
+        }
+    } catch (error) {
+        console.error('❌ API Error:', error);
+        return { success: false, error: String(error) };
+    }
+};
+
+/**
  * Update Opportunity Memo (Details)
  */
 export const updateOpportunityMemo = async (
