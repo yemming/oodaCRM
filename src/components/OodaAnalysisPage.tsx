@@ -1030,19 +1030,7 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                     type="date"
                                     value={closeDate}
                                     onChange={(e) => setCloseDate(e.target.value)}
-                                    className="ooda-value"
-                                    style={{
-                                        background: 'transparent',
-                                        border: 'none',
-                                        borderBottom: '1px dashed #cbd5e1',
-                                        outline: 'none',
-                                        width: '120px',
-                                        padding: '0',
-                                        fontSize: 'inherit',
-                                        fontWeight: 'inherit',
-                                        color: 'inherit',
-                                        textAlign: 'center'
-                                    }}
+                                    className="ooda-date-input"
                                     title="點擊修改預計成案日"
                                 />
                             </div>
@@ -1158,16 +1146,6 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                             </button>
                                             <button
                                                 type="button"
-                                                className={`ooda-sub-tab ${aiActiveType === 'email' ? 'active' : ''}`}
-                                                onClick={() => {
-                                                    setAiActiveType('email');
-                                                    setAiTabMode('email');
-                                                }}
-                                            >
-                                                建議郵件
-                                            </button>
-                                            <button
-                                                type="button"
                                                 className={`ooda-sub-tab ${aiActiveType === 'jep' ? 'active' : ''}`}
                                                 onClick={() => {
                                                     setAiActiveType('jep');
@@ -1176,6 +1154,16 @@ export function OodaAnalysisPage({ opportunity, onClose }: OodaAnalysisPageProps
                                                 disabled={loadingAI}
                                             >
                                                 生成 JEP
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`ooda-sub-tab ${aiActiveType === 'email' ? 'active' : ''}`}
+                                                onClick={() => {
+                                                    setAiActiveType('email');
+                                                    setAiTabMode('email');
+                                                }}
+                                            >
+                                                建議郵件
                                             </button>
                                         </div>
 

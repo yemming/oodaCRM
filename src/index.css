@@ -208,3 +208,54 @@ body,
   border-top: 1px solid #e2e8f0;
   margin: 2em 0;
 }
+
+/* ========================================
+   Date Input Styling
+   ======================================== */
+.ooda-date-input {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px dashed #cbd5e1 !important;
+  outline: none !important;
+  width: 140px !important;
+  /* Slightly wider */
+  padding: 0 4px !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  color: inherit !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: auto !important;
+  line-height: normal !important;
+  margin: 0 !important;
+  font-family: var(--font-body) !important;
+  cursor: pointer !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+
+/* Fix for the black square icon issue and positioning */
+.ooda-date-input::-webkit-calendar-picker-indicator {
+  display: block !important;
+  background-color: transparent !important;
+  cursor: pointer !important;
+  opacity: 0.6 !important;
+  filter: invert(0.5) !important;
+  margin-left: 8px !important;
+  transform: scale(0.9) !important;
+  position: static !important;
+  width: 16px !important;
+  height: 16px !important;
+  padding: 0 !important;
+}
+
+.ooda-date-input:hover {
+  border-bottom: 1px dashed var(--color-accent) !important;
+}
+
+.ooda-date-input:focus {
+  border-bottom: 1px solid var(--color-accent) !important;
+}
