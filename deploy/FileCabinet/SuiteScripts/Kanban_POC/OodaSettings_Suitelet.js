@@ -76,6 +76,7 @@ define(['N/ui/serverWidget', 'N/record', 'N/search', 'N/log'],
                     container: 'group_n8n'
                 });
                 urlField.isMandatory = true;
+                urlField.isMandatory = true;
                 urlField.defaultValue = getConfigValue(KEY_AI_INSIGHT);
 
                 const keyField = form.addField({
