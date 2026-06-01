@@ -75,17 +75,21 @@ function DraggableCard({ opportunity, onOodaClick }: { opportunity: Opportunity;
     onOodaClick(opportunity);
   };
 
+  const probClass =
+    opportunity.probability >= 75 ? 'is-high'
+      : opportunity.probability >= 40 ? 'is-mid'
+        : 'is-low';
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-white rounded-lg p-3 hover:bg-gray-50 transition-all cursor-grab active:cursor-grabbing border border-gray-200 hover:border-gray-300 shadow-sm hover:shadow relative group"
+      className="jira-card"
     >
-      {/* OODA Analysis Button */}
       <button
-        className="ooda-btn absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="ooda-btn"
         onClick={handleOodaClick}
         onPointerDown={(e) => e.stopPropagation()}
         title="OODA 分析"
@@ -93,18 +97,20 @@ function DraggableCard({ opportunity, onOodaClick }: { opportunity: Opportunity;
         O
       </button>
       <h3
-        className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-sm leading-tight cursor-pointer"
+        className="jira-card-title"
         onClick={handleTitleClick}
-        onPointerDown={(e) => e.stopPropagation()} // Prevent drag on title click
+        onPointerDown={(e) => e.stopPropagation()}
       >
         {opportunity.title}
       </h3>
-      <p className="text-gray-500 text-xs mt-1">{opportunity.customer}</p>
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-        <span className="text-green-600 font-semibold text-xs">
+      {opportunity.customer && (
+        <p className="jira-card-customer">{opportunity.customer}</p>
+      )}
+      <div className="jira-card-footer">
+        <span className="jira-card-amount">
           {formatCurrency(opportunity.amount)}
         </span>
-        <span className="text-gray-400 text-xs">
+        <span className={`jira-card-probability ${probClass}`}>
           {opportunity.probability}%
         </span>
       </div>
@@ -140,54 +146,41 @@ function DroppableColumn({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    minWidth: '250px',
-    flex: '0 0 250px',
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`bg-gray-50 rounded-lg border ${column.borderColor} min-h-[400px] flex flex-col`}
-    >
-      {/* Column Header - Draggable */}
+    <div ref={setNodeRef} style={style} className="jira-column">
       <div
         {...attributes}
         {...listeners}
-        className={`flex items-center justify-between p-3 ${column.headerBg} rounded-t-lg border-b ${column.borderColor} cursor-grab active:cursor-grabbing`}
+        className="jira-column-header"
       >
-        <div className="flex items-center gap-2">
-          {/* Restored Drag Handle */}
-          <div className="text-gray-400 cursor-grab active:cursor-grabbing hover:text-gray-600">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+        <div className="jira-column-title-group">
+          <span className="jira-column-drag-handle" aria-hidden="true">
+            <svg width="10" height="14" viewBox="0 0 24 24" fill="currentColor">
               <circle cx="9" cy="5" r="2" /><circle cx="15" cy="5" r="2" />
               <circle cx="9" cy="12" r="2" /><circle cx="15" cy="12" r="2" />
               <circle cx="9" cy="19" r="2" /><circle cx="15" cy="19" r="2" />
             </svg>
-          </div>
-          <div className={`w-2 h-2 rounded-full ${column.color}`} />
-          <h2 className="text-gray-800 font-bold text-sm">{column.label}</h2>
-          <span className="bg-white/50 text-gray-600 text-xs px-2 py-0.5 rounded-full border border-black/5">
-            {opportunities.length}
           </span>
-        </div>
-        <div className="text-right">
-          <span className="text-sm font-bold text-gray-700 font-sans">
-            {formatCurrency(totalAmount)}
-          </span>
+          <div className={`w-2 h-2 rounded-full ${column.color}`} style={{ flexShrink: 0 }} />
+          <h2 className="jira-column-label">{column.label}</h2>
+          <span className="jira-column-count">{opportunities.length}</span>
         </div>
       </div>
+      {totalAmount > 0 && (
+        <div className="jira-column-total">
+          {formatCurrency(totalAmount)}
+        </div>
+      )}
 
-      {/* Cards */}
       <SortableContext items={opportunities.map((opp) => opp.id)}>
-        <div className="p-2 space-y-2 flex-1 overflow-y-auto">
+        <div className="jira-cards">
           {opportunities.map((opp) => (
             <DraggableCard key={opp.id} opportunity={opp} onOodaClick={onOodaClick} />
           ))}
           {opportunities.length === 0 && (
-            <div className="text-gray-400 text-xs text-center py-8">
-              Drop items here
-            </div>
+            <div className="jira-empty-drop">Drop items here</div>
           )}
         </div>
       </SortableContext>
@@ -560,20 +553,20 @@ function App() {
   return (
     <>
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="bg-[#F5F5F5] min-h-screen" style={{ margin: '-10px', padding: '0' }}>
+        <div className="jira-shell" style={{ margin: '-10px', padding: '0' }}>
 
 
           {/* Filter Bar */}
-          <div className="bg-white border-b border-gray-200 px-4 py-4">
+          <div className="jira-filter-bar">
             <div className="flex items-center justify-between w-full">
 
               {/* Left-Aligned Filters */}
-              <div className="flex flex-nowrap gap-8 items-end">
+              <div className="flex flex-nowrap gap-6 items-end">
 
                 {/* 1. Total Estimated Amount (First) */}
-                <div className="flex flex-col items-start px-6 py-2 bg-gray-50 border border-gray-100 rounded-lg min-w-[180px]">
-                  <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-0.5 text-left w-full">預估專案總金額</span>
-                  <span className="text-2xl font-bold text-gray-900 font-sans leading-none tracking-tight text-left w-full">
+                <div className="jira-kpi">
+                  <span className="jira-kpi-label">預估專案總金額</span>
+                  <span className="jira-kpi-value">
                     {formatCurrency(filteredOpportunities.reduce((sum, opp) => sum + opp.amount, 0))}
                   </span>
                 </div>
@@ -658,33 +651,40 @@ function App() {
           </div>
 
           {/* Kanban Board */}
-          <div className="p-4 overflow-x-auto">
-            <SortableContext
-              items={statusColumns.map((col: StatusColumn) => `column-${col.key}`)}
-              strategy={horizontalListSortingStrategy}
-            >
-              <div className="flex gap-3" style={{ minWidth: `${statusColumns.length * 260}px` }}>
-                {statusColumns.map((column: StatusColumn) => (
-                  <DroppableColumn
-                    key={column.key}
-                    column={column}
-                    opportunities={getOpportunitiesByStatus(column.key)}
-                    totalAmount={getTotalByStatus(column.key)}
-                    onOodaClick={setSelectedOpportunity}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </div>
+          <SortableContext
+            items={statusColumns.map((col: StatusColumn) => `column-${col.key}`)}
+            strategy={horizontalListSortingStrategy}
+          >
+            <div className="jira-board">
+              {statusColumns.map((column: StatusColumn) => (
+                <DroppableColumn
+                  key={column.key}
+                  column={column}
+                  opportunities={getOpportunitiesByStatus(column.key)}
+                  totalAmount={getTotalByStatus(column.key)}
+                  onOodaClick={setSelectedOpportunity}
+                />
+              ))}
+            </div>
+          </SortableContext>
 
           {/* Drag Overlay */}
           <DragOverlay>
             {activeOpportunity ? (
-              <div className="bg-white rounded-lg p-3 border border-gray-300 shadow-lg">
-                <h3 className="text-gray-800 font-medium text-sm">{activeOpportunity.title}</h3>
-                <p className="text-gray-500 text-xs mt-1">{activeOpportunity.customer}</p>
-                <div className="text-green-600 font-semibold text-xs mt-2">
-                  {formatCurrency(activeOpportunity.amount)}
+              <div
+                className="jira-card"
+                style={{ boxShadow: '0 8px 16px rgba(9,30,66,0.25), 0 0 1px rgba(9,30,66,0.31)', cursor: 'grabbing' }}
+              >
+                <h3 className="jira-card-title" style={{ pointerEvents: 'none' }}>
+                  {activeOpportunity.title}
+                </h3>
+                {activeOpportunity.customer && (
+                  <p className="jira-card-customer">{activeOpportunity.customer}</p>
+                )}
+                <div className="jira-card-footer">
+                  <span className="jira-card-amount">
+                    {formatCurrency(activeOpportunity.amount)}
+                  </span>
                 </div>
               </div>
             ) : null}
