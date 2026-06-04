@@ -24,27 +24,36 @@ import { SortableContext, useSortable, arrayMove, horizontalListSortingStrategy 
 import { CSS } from '@dnd-kit/utilities';
 import './App.css';
 
-// Color palette for dynamic status columns
-const COLUMN_COLORS = [
-  { color: 'bg-blue-600', headerBg: 'bg-blue-50', borderColor: 'border-blue-200' },
-  { color: 'bg-cyan-500', headerBg: 'bg-cyan-50', borderColor: 'border-cyan-200' },
-  { color: 'bg-amber-500', headerBg: 'bg-amber-50', borderColor: 'border-amber-200' },
-  { color: 'bg-purple-600', headerBg: 'bg-purple-50', borderColor: 'border-purple-200' },
-  { color: 'bg-green-600', headerBg: 'bg-green-50', borderColor: 'border-green-200' },
-  { color: 'bg-rose-500', headerBg: 'bg-rose-50', borderColor: 'border-rose-200' },
-  { color: 'bg-indigo-500', headerBg: 'bg-indigo-50', borderColor: 'border-indigo-200' },
-  { color: 'bg-orange-500', headerBg: 'bg-orange-50', borderColor: 'border-orange-200' },
-  { color: 'bg-teal-500', headerBg: 'bg-teal-50', borderColor: 'border-teal-200' },
-  { color: 'bg-pink-500', headerBg: 'bg-pink-50', borderColor: 'border-pink-200' },
-];
-
 interface StatusColumn {
   key: string;
   label: string;
-  color: string;
-  headerBg: string;
-  borderColor: string;
 }
+
+// 卡片左彩條 / 機率圓點的顏色：依成交機率分級（= 案件健康度）。
+// 對齊新版看板「卡片左條編碼單卡屬性」的設計（真版用優先度，CRM 用機率）。
+const probColor = (p: number): string =>
+  p >= 75 ? 'var(--green)' : p >= 40 ? 'var(--amber)' : 'var(--red)';
+
+// 日期格式化：YYYY/MM/DD（對齊新版看板）
+const formatDate = (dateStr?: string): string => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}/${m}/${day}`;
+};
+
+// 逾期判斷：預計結單日已過、且尚未結案（機率 < 100）
+const isOverdue = (opp: Opportunity): boolean => {
+  if (!opp.closeDate || opp.probability >= 100) return false;
+  const close = new Date(opp.closeDate);
+  if (isNaN(close.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return close < today;
+};
 
 // Draggable Card Component
 function DraggableCard({ opportunity, onOodaClick }: { opportunity: Opportunity; onOodaClick: (opp: Opportunity) => void }) {
@@ -56,7 +65,8 @@ function DraggableCard({ opportunity, onOodaClick }: { opportunity: Opportunity;
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-  };
+    '--card-accent': probColor(opportunity.probability),
+  } as React.CSSProperties;
 
   // Generate NetSuite Opportunity URL
   const opportunityUrl = `/app/accounting/transactions/opprtnty.nl?id=${opportunity.id}`;
@@ -74,11 +84,6 @@ function DraggableCard({ opportunity, onOodaClick }: { opportunity: Opportunity;
     e.preventDefault();
     onOodaClick(opportunity);
   };
-
-  const probClass =
-    opportunity.probability >= 75 ? 'is-high'
-      : opportunity.probability >= 40 ? 'is-mid'
-        : 'is-low';
 
   return (
     <div
@@ -107,12 +112,25 @@ function DraggableCard({ opportunity, onOodaClick }: { opportunity: Opportunity;
         <p className="jira-card-customer">{opportunity.customer}</p>
       )}
       <div className="jira-card-footer">
+        <span className="jira-card-prob" title={`成交機率 ${opportunity.probability}%`}>
+          <span className="jira-card-prob-dot" style={{ background: probColor(opportunity.probability) }} />
+          {opportunity.probability}%
+        </span>
         <span className="jira-card-amount">
           {formatCurrency(opportunity.amount)}
         </span>
-        <span className={`jira-card-probability ${probClass}`}>
-          {opportunity.probability}%
+      </div>
+      <div className="jira-card-meta">
+        <span className={`jira-card-date ${isOverdue(opportunity) ? 'is-overdue' : ''}`}>
+          {opportunity.closeDate
+            ? `${isOverdue(opportunity) ? '逾期 ' : ''}${formatDate(opportunity.closeDate)}`
+            : '無結單日'}
         </span>
+        {opportunity.salesRep && (
+          <span className="jira-card-rep" title={opportunity.salesRep}>
+            {opportunity.salesRep}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -163,7 +181,6 @@ function DroppableColumn({
               <circle cx="9" cy="19" r="2" /><circle cx="15" cy="19" r="2" />
             </svg>
           </span>
-          <div className={`w-2 h-2 rounded-full ${column.color}`} style={{ flexShrink: 0 }} />
           <h2 className="jira-column-label">{column.label}</h2>
           <span className="jira-column-count">{opportunities.length}</span>
         </div>
@@ -299,12 +316,11 @@ function App() {
     // 1. Try to get all statuses from global NetSuite data injected by Suitelet
     const nsData = (window as any).NETSUITE_DATA;
     if (nsData && nsData.allStatuses && Array.isArray(nsData.allStatuses) && nsData.allStatuses.length > 0) {
-      return nsData.allStatuses.map((status: { id: string; name: string }, index: number) => {
+      return nsData.allStatuses.map((status: { id: string; name: string }) => {
         const key = status.name.toLowerCase().replace(/\s+/g, '_');
         return {
           key,
           label: status.name,
-          ...COLUMN_COLORS[index % COLUMN_COLORS.length]
         };
       });
     }
@@ -318,10 +334,9 @@ function App() {
     });
 
     // Convert to array and assign colors
-    return Array.from(statusMap.entries()).map(([key, label], index) => ({
+    return Array.from(statusMap.entries()).map(([key, label]) => ({
       key,
       label,
-      ...COLUMN_COLORS[index % COLUMN_COLORS.length]
     }));
   }, [opportunities]);
 
@@ -556,98 +571,122 @@ function App() {
         <div className="jira-shell" style={{ margin: '-10px', padding: '0' }}>
 
 
-          {/* Filter Bar */}
-          <div className="jira-filter-bar">
-            <div className="flex items-center justify-between w-full">
+          {/* 頂部 banner */}
+          <div className="crm-banner">
+            <div>
+              <h1 className="crm-banner-title">商機看板</h1>
+              <p className="crm-banner-sub">Opportunity Pipeline · 拖拉卡片即可更新狀態</p>
+            </div>
+            <div className="crm-banner-actions">
+              {updating && (
+                <span style={{ fontSize: 12, opacity: 0.85 }}>更新中…</span>
+              )}
+              <button className="crm-banner-btn" onClick={() => window.location.reload()} title="重新整理">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 4v6h-6M1 20v-6h6" />
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                </svg>
+                重整
+              </button>
+            </div>
+          </div>
 
-              {/* Left-Aligned Filters */}
-              <div className="flex flex-nowrap gap-6 items-end">
-
-                {/* 1. Total Estimated Amount (First) */}
-                <div className="jira-kpi">
-                  <span className="jira-kpi-label">預估專案總金額</span>
-                  <span className="jira-kpi-value">
-                    {formatCurrency(filteredOpportunities.reduce((sum, opp) => sum + opp.amount, 0))}
-                  </span>
-                </div>
-
-                {/* 2. Date Range Filter */}
-                <div className="flex flex-col items-start">
-                  <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1 ml-1">預計結單日期</label>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <select
-                        value={dateRangeType}
-                        onChange={(e) => setDateRangeType(e.target.value as 'quarter' | 'month' | 'year' | 'all' | 'custom')}
-                        className="text-sm text-left font-medium border border-gray-300 rounded-md px-4 py-1 bg-white min-w-[110px] appearance-none cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm"
-                      >
-                        <option value="quarter">本季</option>
-                        <option value="month">本月</option>
-                        <option value="year">今年</option>
-                        <option value="all">全部</option>
-                        <option value="custom">自訂</option>
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    </div>
-                    {dateRangeType === 'custom' && (
-                      <>
-                        <input
-                          type="date"
-                          value={customDateStart}
-                          onChange={(e) => setCustomDateStart(e.target.value)}
-                          className="text-sm border border-gray-300 rounded px-2 py-1"
-                        />
-                        <span className="text-base text-gray-500">至</span>
-                        <input
-                          type="date"
-                          value={customDateEnd}
-                          onChange={(e) => setCustomDateEnd(e.target.value)}
-                          className="text-sm border border-gray-300 rounded px-2 py-1"
-                        />
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* 3. Sales Rep Filter */}
-                <div className="flex flex-col items-start">
-                  <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1 ml-1">業務員</label>
-                  <MultiSelectCheckbox
-                    options={salesRepOptions.map(rep => ({ label: rep.name, value: rep.id }))}
-                    selectedValues={selectedSalesReps}
-                    onChange={setSelectedSalesReps}
-                    placeholder="全部業務員"
-                  />
-                </div>
-
-                {/* 4. Status Filter */}
-                <div className="flex flex-col items-start">
-                  <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1 ml-1">狀態</label>
-                  <MultiSelectCheckbox
-                    options={baseStatusColumns.map(col => ({ label: col.label, value: col.key }))}
-                    selectedValues={selectedStatuses}
-                    onChange={setSelectedStatuses}
-                    placeholder="全部狀態"
-                  />
-                </div>
+          {/* KPI 卡片列 */}
+          <div className="crm-kpi-grid">
+            <div className="crm-kpi-card">
+              <div className="crm-kpi-label">預估專案總金額</div>
+              <div className="crm-kpi-value">
+                {formatCurrency(filteredOpportunities.reduce((sum, opp) => sum + opp.amount, 0))}
               </div>
+              <div className="crm-kpi-sub">目前篩選範圍合計</div>
+            </div>
+            <div className="crm-kpi-card">
+              <div className="crm-kpi-label">加權預估金額</div>
+              <div className="crm-kpi-value">
+                {formatCurrency(filteredOpportunities.reduce((sum, opp) => sum + opp.amount * opp.probability / 100, 0))}
+              </div>
+              <div className="crm-kpi-sub">依各案成交機率加權</div>
+            </div>
+            <div className="crm-kpi-card">
+              <div className="crm-kpi-label">商機筆數</div>
+              <div className="crm-kpi-value">
+                {filteredOpportunities.length}
+                <span className="crm-kpi-unit">件</span>
+              </div>
+              <div className="crm-kpi-sub">共 {opportunities.length} 件</div>
+            </div>
+            <div className="crm-kpi-card">
+              <div className="crm-kpi-label">逾期商機</div>
+              <div className={`crm-kpi-value ${filteredOpportunities.filter(isOverdue).length > 0 ? 'is-amber' : ''}`}>
+                {filteredOpportunities.filter(isOverdue).length}
+                <span className="crm-kpi-unit">件</span>
+              </div>
+              <div className="crm-kpi-sub">預計結單日已過</div>
+            </div>
+          </div>
 
-              {/* Count Info - Right Aligned via justify-between */}
-              <div className="flex items-center gap-3">
-                {updating && (
-                  <div className="text-xs text-blue-600 animate-pulse">
-                    Updating...
-                  </div>
-                )}
-                <div className="text-xs text-gray-500 whitespace-nowrap">
-                  顯示 <span className="font-bold text-gray-700">{filteredOpportunities.length}</span> / {opportunities.length} 筆
-                </div>
+          {/* 篩選列 */}
+          <div className="jira-filter-bar">
+            <span className="crm-filter-label">篩選</span>
+
+            {/* 預計結單日期 */}
+            <div className="relative">
+              <select
+                value={dateRangeType}
+                onChange={(e) => setDateRangeType(e.target.value as 'quarter' | 'month' | 'year' | 'all' | 'custom')}
+                className="crm-select"
+                style={{ minWidth: 120 }}
+              >
+                <option value="quarter">本季結單</option>
+                <option value="month">本月結單</option>
+                <option value="year">今年結單</option>
+                <option value="all">全部期間</option>
+                <option value="custom">自訂期間</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: '#667085' }}>
+                <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
               </div>
             </div>
+
+            {dateRangeType === 'custom' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={customDateStart}
+                  onChange={(e) => setCustomDateStart(e.target.value)}
+                  className="crm-select"
+                />
+                <span style={{ color: '#667085', fontSize: 13 }}>至</span>
+                <input
+                  type="date"
+                  value={customDateEnd}
+                  onChange={(e) => setCustomDateEnd(e.target.value)}
+                  className="crm-select"
+                />
+              </div>
+            )}
+
+            {/* 業務員 */}
+            <MultiSelectCheckbox
+              options={salesRepOptions.map(rep => ({ label: rep.name, value: rep.id }))}
+              selectedValues={selectedSalesReps}
+              onChange={setSelectedSalesReps}
+              placeholder="全部業務員"
+            />
+
+            {/* 狀態 */}
+            <MultiSelectCheckbox
+              options={baseStatusColumns.map(col => ({ label: col.label, value: col.key }))}
+              selectedValues={selectedStatuses}
+              onChange={setSelectedStatuses}
+              placeholder="全部狀態"
+            />
+
+            <span className="crm-filter-count">
+              顯示 <strong style={{ color: '#344054' }}>{filteredOpportunities.length}</strong> / {opportunities.length} 筆
+            </span>
           </div>
 
           {/* Kanban Board */}
@@ -673,7 +712,11 @@ function App() {
             {activeOpportunity ? (
               <div
                 className="jira-card"
-                style={{ boxShadow: '0 8px 16px rgba(9,30,66,0.25), 0 0 1px rgba(9,30,66,0.31)', cursor: 'grabbing' }}
+                style={{
+                  boxShadow: '0 12px 28px rgba(22,22,21,0.18)',
+                  cursor: 'grabbing',
+                  '--card-accent': probColor(activeOpportunity.probability),
+                } as React.CSSProperties}
               >
                 <h3 className="jira-card-title" style={{ pointerEvents: 'none' }}>
                   {activeOpportunity.title}
@@ -682,6 +725,10 @@ function App() {
                   <p className="jira-card-customer">{activeOpportunity.customer}</p>
                 )}
                 <div className="jira-card-footer">
+                  <span className="jira-card-prob">
+                    <span className="jira-card-prob-dot" style={{ background: probColor(activeOpportunity.probability) }} />
+                    {activeOpportunity.probability}%
+                  </span>
                   <span className="jira-card-amount">
                     {formatCurrency(activeOpportunity.amount)}
                   </span>
