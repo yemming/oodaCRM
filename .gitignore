@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright MCP browser tool temp (screenshots/logs)
+.playwright-mcp/

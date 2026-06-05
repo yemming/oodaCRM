@@ -6,7 +6,7 @@
  * OCR Suitelet
  * Receives file upload from Frontend.
  * Actions:
- * 1. 'analyzeCard': Sends to N8N for OCR.
+ * 1. 'analyzeCard': 伺服器端直接呼叫 Google Gemini 做名片 OCR（API key 走 NetSuite Secret）。
  * 2. 'createRecord': Creates/Updates Customer and Contact in NetSuite.
  */
 define(['N/https', 'N/search', 'N/log', 'N/runtime', 'N/record', 'N/file'],
@@ -15,11 +15,21 @@ define(['N/https', 'N/search', 'N/log', 'N/runtime', 'N/record', 'N/file'],
         const CONFIG_RECORD_TYPE = 'customrecord_ooda_config';
         const FIELD_KEY = 'custrecord_ooda_config_key';
         const FIELD_VALUE = 'custrecord_ooda_config_value';
-        const KEY_N8N_URL = 'n8n_url';
         const KEY_OCR_FOLDER = 'ocr_folder_id';
-        const KEY_N8N_AUTH = 'n8n_key';
 
-        // Folder to store Business Cards. 
+        // === Google Gemini OCR 設定 ===
+        // API key 一律不寫進程式碼：改用 NetSuite Secret 注入。
+        // ⚠️ 記得到該 Secret 的 Restrictions 分頁，允許「本 Suitelet script」與
+        //    網域「generativelanguage.googleapis.com」，否則 https 呼叫會被擋。
+        const GEMINI_SECRET_ID = 'custsecret_einv_gemini_key';
+        const GEMINI_MODEL = 'gemini-2.5-flash';
+        const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent';
+
+        // 名片擷取欄位（與前端 OCRResult 介面一一對應）
+        const CARD_FIELDS = ['lastName', 'firstName', 'chineseName', 'englishName',
+            'company', 'jobTitle', 'unifiedBusinessNumber', 'email', 'mobile', 'website', 'address', 'notes'];
+
+        // Folder to store Business Cards.
         const TARGET_FOLDER_NAME = 'OODA Business Cards';
 
         /**
@@ -109,58 +119,112 @@ define(['N/https', 'N/search', 'N/log', 'N/runtime', 'N/record', 'N/file'],
             return subsidiaryId;
         };
 
-        const handleAnalyzeCard = (body, response) => {
-            const { fileContent, fileName, fileType } = body;
+        // 將前端傳來的 MIME type 對應到 Gemini 支援的格式
+        const resolveMimeType = (fileType) => {
+            const t = (fileType || '').toLowerCase();
+            if (t.includes('pdf')) return 'application/pdf';
+            if (t.includes('jpeg') || t.includes('jpg')) return 'image/jpeg';
+            if (t.includes('webp')) return 'image/webp';
+            return 'image/png';
+        };
+
+        // 動態組出 Gemini structured output 的 responseSchema（全欄位皆字串）
+        const buildCardSchema = () => {
+            const properties = {};
+            CARD_FIELDS.forEach((f) => { properties[f] = { type: 'STRING' }; });
+            return { type: 'OBJECT', properties: properties, propertyOrdering: CARD_FIELDS };
+        };
+
+        // 確保回傳物件含所有欄位、皆為已 trim 的字串（缺的補空字串）
+        const normalizeCard = (raw) => {
+            const out = {};
+            CARD_FIELDS.forEach((f) => {
+                out[f] = (raw && raw[f] != null) ? String(raw[f]).trim() : '';
+            });
+            return out;
+        };
+
+        const OCR_PROMPT = [
+            '你是專業的名片資訊擷取助理。請從這張名片擷取資訊，並依指定 JSON 結構回傳。',
+            '規則：',
+            '- chineseName：名片上的中文姓名（無則空字串）',
+            '- englishName：名片上的英文姓名（無則空字串）',
+            '- lastName / firstName：英文姓名的姓 / 名（若名片只有中文可留空，後端會另行拆字）',
+            '- company：公司全名',
+            '- jobTitle：職稱',
+            '- unifiedBusinessNumber：台灣統一編號（8 碼數字，無則空字串）',
+            '- email / mobile / website / address：對應聯絡資訊；mobile 優先取行動電話，無行動電話才填市話',
+            '- notes：其他補充（部門、傳真、Line ID、分機等）',
+            '- 找不到的欄位一律回傳空字串 ""，禁止捏造。'
+        ].join('\n');
+
+        const handleAnalyzeCard = (body) => {
+            const { fileContent, fileType } = body;
             if (!fileContent) throw new Error('No file content provided');
 
-            const n8nUrl = getConfigValue(KEY_N8N_URL);
-            log.debug('OCR Config Check', `Using N8N URL: ${n8nUrl}`);
-            const n8nKey = getConfigValue(KEY_N8N_AUTH);
-            if (!n8nUrl) throw new Error('N8N Webhook URL not configured.');
+            const mimeType = resolveMimeType(fileType);
+            log.debug('Gemini OCR', `Model: ${GEMINI_MODEL}, MIME: ${mimeType}`);
 
-            log.debug('Sending to N8N', `URL: ${n8nUrl}, Key: ${n8nKey ? 'Configured' : 'Missing'}, File: ${fileName}`);
-
-            const n8nPayload = {
-                requestType: 'ocr_namecard',
-                fileName: fileName,
-                fileType: fileType,
-                data: fileContent
+            const geminiBody = {
+                contents: [{
+                    parts: [
+                        { text: OCR_PROMPT },
+                        { inline_data: { mime_type: mimeType, data: fileContent } }
+                    ]
+                }],
+                generationConfig: {
+                    temperature: 0.1,
+                    responseMimeType: 'application/json',
+                    responseSchema: buildCardSchema()
+                }
             };
 
-            const cleanKey = (n8nKey || '').trim();
-            const headers = {
-                'Content-Type': 'application/json',
-                'n8nkey': cleanKey
-            };
-            log.debug('N8N Request Headers', JSON.stringify({
-                ...headers,
-                'n8nkey': cleanKey ? `${cleanKey.substring(0, 4)}...***` : 'MISSING'
-            }));
+            // API key 由 NetSuite Secret 以 {custsecret_...} 佔位符注入 header；
+            // SecureString 全程不出現在程式碼與 log（curly braces 是 NetSuite 解析 secret 的語法）
+            const apiKeySecure = https.createSecureString({ input: '{' + GEMINI_SECRET_ID + '}' });
 
-            const n8nResponse = https.post({
-                url: n8nUrl,
-                headers: headers,
-                body: JSON.stringify(n8nPayload)
+            const geminiResponse = https.post({
+                url: GEMINI_ENDPOINT,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': apiKeySecure
+                },
+                body: JSON.stringify(geminiBody)
             });
 
-            if (n8nResponse.code === 200) {
-                let responseData;
-                try {
-                    responseData = JSON.parse(n8nResponse.body);
-                    // Handle N8N "All Incoming Items" array format: [{ "output": { ... } }]
-                    if (Array.isArray(responseData) && responseData.length > 0 && responseData[0].output) {
-                        responseData = responseData[0].output;
-                    } else if (Array.isArray(responseData) && responseData.length > 0) {
-                        responseData = responseData[0];
-                    }
-                } catch (e) {
-                    responseData = { raw: n8nResponse.body };
-                }
-
-                return { success: true, data: responseData };
-            } else {
-                throw new Error(`N8N returned status ${n8nResponse.code} when calling ${n8nUrl}. Response: ${n8nResponse.body}`);
+            if (geminiResponse.code !== 200) {
+                log.error('Gemini API Error', `Status ${geminiResponse.code}: ${geminiResponse.body}`);
+                throw new Error(`Gemini API 回傳 ${geminiResponse.code}。請確認 API Key 是否有效，以及 Secret「${GEMINI_SECRET_ID}」的 Restrictions 已允許本 script 與網域 generativelanguage.googleapis.com。`);
             }
+
+            let parsed;
+            try {
+                parsed = JSON.parse(geminiResponse.body);
+            } catch (e) {
+                throw new Error('Gemini 回應非 JSON：' + String(geminiResponse.body).substring(0, 200));
+            }
+
+            const candidate = parsed && parsed.candidates && parsed.candidates[0];
+            const text = candidate && candidate.content && candidate.content.parts
+                && candidate.content.parts[0] && candidate.content.parts[0].text;
+
+            if (!text) {
+                const reason = (candidate && candidate.finishReason)
+                    || (parsed && parsed.promptFeedback && parsed.promptFeedback.blockReason)
+                    || 'no content';
+                throw new Error('Gemini 未回傳結果（' + reason + '）');
+            }
+
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                // 萬一被包了 markdown ```json fence，清掉再 parse
+                const cleaned = String(text).replace(/```json/gi, '').replace(/```/g, '').trim();
+                data = JSON.parse(cleaned);
+            }
+
+            return { success: true, data: normalizeCard(data) };
         };
 
         const handleCreateRecord = (body) => {
@@ -329,7 +393,7 @@ define(['N/https', 'N/search', 'N/log', 'N/runtime', 'N/record', 'N/file'],
                 if (action === 'createRecord') {
                     result = handleCreateRecord(body);
                 } else {
-                    result = handleAnalyzeCard(body, response);
+                    result = handleAnalyzeCard(body);
                 }
 
                 response.setHeader({ name: 'Content-Type', value: 'application/json' });

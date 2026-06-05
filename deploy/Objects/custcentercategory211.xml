@@ -1,0 +1,19 @@
+<centercategory scriptid="custcentercategory211">
+  <center>ACCOUNTCENTER</center>
+  <centertab>[scriptid=custcentertab126]</centertab>
+  <label>OODA CRM for NetSuite</label>
+  <links>
+    <link>
+      <linklabel>OODA OCR</linklabel>
+      <linkobject>[scriptid=customscript_ooda_ocr_page_suitelet.customdeploy_ooda_ocr_page_suitelet]</linkobject>
+      <linktasktype>SCRIPT</linktasktype>
+      <shortlist>F</shortlist>
+    </link>
+    <link>
+      <linklabel>Kanban Dashboard</linklabel>
+      <linkobject>[scriptid=customscript677.customdeploy1]</linkobject>
+      <linktasktype>SCRIPT</linktasktype>
+      <shortlist>F</shortlist>
+    </link>
+  </links>
+</centercategory>

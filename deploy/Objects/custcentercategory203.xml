@@ -1,0 +1,25 @@
+<centercategory scriptid="custcentercategory203">
+  <center>SALESCENTER</center>
+  <centertab>SALESCENTERCENTEROPPORTUNITIES</centertab>
+  <label>OODA CRM for NetSuite</label>
+  <links>
+    <link>
+      <linklabel>名片辨識</linklabel>
+      <linkobject>[scriptid=customscript_ooda_ocr_page_suitelet.customdeploy_ooda_ocr_page_suitelet]</linkobject>
+      <linktasktype>SCRIPT</linktasktype>
+      <shortlist>F</shortlist>
+    </link>
+    <link>
+      <linklabel>商機儀表板</linklabel>
+      <linkobject>[scriptid=customscript677.customdeploy1]</linkobject>
+      <linktasktype>SCRIPT</linktasktype>
+      <shortlist>F</shortlist>
+    </link>
+    <link>
+      <linklabel>設定</linklabel>
+      <linkobject>[scriptid=customscript_ooda_settings.customdeploy_ooda_settings]</linkobject>
+      <linktasktype>SCRIPT</linktasktype>
+      <shortlist>F</shortlist>
+    </link>
+  </links>
+</centercategory>

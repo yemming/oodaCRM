@@ -1,0 +1,10 @@
+<suitelet scriptid="customscript_ooda_kanban_dashboard">
+  <description></description>
+  <isinactive>F</isinactive>
+  <name>OODA Kanban Dashboard</name>
+  <notifyadmins>F</notifyadmins>
+  <notifyemails></notifyemails>
+  <notifyowner>T</notifyowner>
+  <notifyuser>F</notifyuser>
+  <scriptfile>[/SuiteScripts/Kanban_POC/Kanban_Suitelet.js]</scriptfile>
+</suitelet>
